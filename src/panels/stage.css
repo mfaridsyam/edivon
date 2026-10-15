@@ -1,0 +1,124 @@
+.stage {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  container-type: inline-size;
+}
+.stage-viewport {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-5);
+  overflow: hidden;
+}
+.stage-frame {
+  position: relative;
+  box-sizing: content-box;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+.stage-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.stage-frame:fullscreen {
+  display: grid;
+  place-items: center;
+  width: 100vw;
+  height: 100vh;
+  border: none;
+  border-radius: 0;
+  /* Latar layar penuh adalah isi video (letterbox), sama dengan latar kompositor. */
+  background: #000000;
+}
+
+/* Baris transport */
+.transport {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+  height: 56px;
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.transport-time {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  white-space: nowrap;
+}
+.transport-total {
+  color: var(--ink-muted);
+}
+.transport-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.transport-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.play-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  transition: var(--transition-color);
+}
+.play-btn:hover {
+  background: var(--accent-hover);
+}
+
+@container (max-width: 680px) {
+  .transport-total {
+    display: none;
+  }
+}
+@container (max-width: 520px) {
+  .transport {
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+    height: auto;
+    padding: var(--space-2) var(--space-3);
+    row-gap: var(--space-2);
+  }
+  .transport-controls {
+    justify-self: end;
+  }
+  .transport-end {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+  }
+}
+
+/* Elemen media sumber: ada di DOM agar dekode berjalan normal, tapi tidak terlihat */
+.media-host {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.media-host video {
+  width: 1px;
+  height: 1px;
+}
