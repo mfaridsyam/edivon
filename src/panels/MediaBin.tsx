@@ -10,7 +10,6 @@ import { Button } from '../ui/Button';
 import { TabPanel, Tabs } from '../ui/Tabs';
 import { IconDownload, IconEffect, IconFilm, IconImage, IconMusic } from '../ui/icons';
 import { endPayloadDrag, startPayloadDrag } from './dragPayload';
-import { YouTubeImport } from './YouTubeImport';
 import './mediabin.css';
 
 const TABS = [
@@ -254,14 +253,12 @@ export function MediaBin() {
         {tab === 'media' && (
           <>
             <Dropzone hint="Seret video atau gambar ke sini." />
-            <YouTubeImport defaultFormat="mp4" />
             {visual.length > 0 && <MediaGrid items={visual} label="Video dan gambar" />}
           </>
         )}
         {tab === 'audio' && (
           <>
             <Dropzone hint="Seret musik atau rekaman suara ke sini." />
-            <YouTubeImport defaultFormat="mp3" />
             {audio.length > 0 && <MediaGrid items={audio} label="Audio" />}
           </>
         )}
