@@ -1,4 +1,4 @@
-import { deleteSelection, jumpToEnd, jumpToStart, setTool } from '../state/actions';
+import { deleteSelection, jumpToEnd, jumpToStart, setTool, trimToPlayhead } from '../state/actions';
 import { editor } from '../state/store';
 import { toolByKey } from '../state/tools';
 import { closeClipPopover, useClipPopover } from '../panels/timeline/clipTools';
@@ -21,7 +21,7 @@ function inOverlay(target: EventTarget | null): boolean {
 }
 
 /**
- * Pintasan global: alat (V S P T C K A E), Delete/Backspace, Spasi, undo/redo,
+ * Pintasan global: alat (V S T C K A E), potong ke playhead (Q W), Delete/Backspace, Spasi, undo/redo,
  * Home/End, dan panah untuk playhead saat tidak ada kontrol yang menangani panah.
  */
 export function installShortcuts(): () => void {
@@ -87,6 +87,12 @@ export function installShortcuts(): () => void {
       e.preventDefault();
       const step = (e.shiftKey ? FPS : 1) * (key === 'ArrowLeft' ? -1 : 1);
       s.setPlayhead(Math.max(0, s.playhead + step));
+      return;
+    }
+
+    if (!mod && !e.altKey && (key === 'q' || key === 'Q' || key === 'w' || key === 'W')) {
+      e.preventDefault();
+      trimToPlayhead(key.toLowerCase() === 'q' ? 'start' : 'end');
       return;
     }
 

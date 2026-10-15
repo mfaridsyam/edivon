@@ -14,14 +14,12 @@ import {
   IconSplit,
   IconText,
   IconTrash,
-  IconTrim,
   IconVolume,
 } from '../ui/icons';
 
 const TOOL_ICON: Record<ToolId, ReactNode> = {
   select: <IconCursor />,
   split: <IconSplit />,
-  trim: <IconTrim />,
   text: <IconText />,
   crop: <IconCrop />,
   speed: <IconSpeed />,

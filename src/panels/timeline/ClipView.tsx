@@ -120,8 +120,7 @@ export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoo
     if (s.tool === 'crop') return;
 
     let mode: DragMode = 'move';
-    if (s.tool === 'trim') mode = ox < rect.width / 2 ? 'trim-start' : 'trim-end';
-    else if (ox <= EDGE_PX && rect.width > EDGE_PX * 3) mode = 'trim-start';
+    if (ox <= EDGE_PX && rect.width > EDGE_PX * 3) mode = 'trim-start';
     else if (rect.width - ox <= EDGE_PX && rect.width > EDGE_PX * 3) mode = 'trim-end';
 
     el.setPointerCapture(e.pointerId);
@@ -231,12 +230,7 @@ export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoo
     e.preventDefault();
     const step = (e.shiftKey ? FPS : 1) * (e.key === 'ArrowLeft' ? -1 : 1);
     if (!selected) selectClip(clip.id);
-    if (s.tool === 'trim') {
-      if (e.altKey) s.apply((p) => trimStart(p, clip.id, clip.start + step), { coalesce: `trim-start:${clip.id}` });
-      else s.apply((p) => trimEnd(p, clip.id, clipEnd(clip) + step), { coalesce: `trim-end:${clip.id}` });
-    } else {
-      s.apply((p) => nudgeClip(p, clip.id, step), { coalesce: `nudge:${clip.id}` });
-    }
+    s.apply((p) => nudgeClip(p, clip.id, step), { coalesce: `nudge:${clip.id}` });
   };
 
   const tc = formatTimecode(clip.start);

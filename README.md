@@ -6,7 +6,7 @@ Editor video yang berjalan sepenuhnya di browser. Tidak ada server dan tidak ada
 
 - Impor video, audio, dan gambar lewat seret-lepas atau tombol **Pilih berkas**. Durasi, dimensi, dan thumbnail dibaca di browser.
 - Timeline dengan lajur Teks, Video 2, Video 1, dan Audio 1. Kamu bisa menambah lajur video, audio, teks, atau efek. Klip bisa digeser antarlajur, menempel ke klip lain dan playhead, di-trim dari tepi, dibelah, dan dihapus. Ada juga zoom timeline.
-- Alat: Pilih, Belah, Potong, Teks, Crop, Kecepatan, Volume, Efek, dan Hapus.
+- Alat: Pilih, Belah, Teks, Crop, Kecepatan, Volume, Efek, dan Hapus. Dengan alat Pilih, tarik ujung klip untuk memendekkan atau memanjangkannya. Q dan W memotong awal atau akhir klip ke posisi playhead.
 - Properti klip: skala, posisi, rotasi, opasitas, kecepatan (0,5× sampai 4×), kecerahan, kontras, saturasi, volume, dan tombol **Setel ulang**.
 - Klip video, gambar, dan teks bisa dipilih langsung di pratinjau. Seret untuk memindahkannya (menempel ke garis tengah), atau tarik sudutnya untuk mengubah skala.
 - Pratinjau dengan rasio 16:9, 9:16, atau 1:1, plus timecode dan layar penuh.
@@ -72,12 +72,12 @@ Setiap push ke branch utama akan memicu deploy baru.
 |---|---|
 | V | Alat Pilih |
 | S | Alat Belah |
-| P | Alat Potong (trim) |
 | T | Alat Teks |
 | C | Alat Crop |
 | K | Alat Kecepatan |
 | A | Alat Volume |
 | E | Alat Efek |
+| Q / W | Potong awal / akhir klip terpilih ke playhead (tanpa pilihan: semua klip di bawah playhead) |
 | Delete / Backspace | Hapus klip terpilih |
 | Spasi | Putar / jeda |
 | Ctrl/Cmd + Z | Urungkan |
@@ -86,7 +86,7 @@ Setiap push ke branch utama akan memicu deploy baru.
 | ← / → | Geser playhead satu frame (Shift: satu detik) |
 | Esc | Tutup popover, kembali ke alat Pilih, atau hapus seleksi |
 
-Untuk klip yang sedang difokus: Enter memilih atau menjalankan alat aktif, panah menggeser klip (dengan alat Potong, panah mengubah tepi kanan dan Alt + panah mengubah tepi kiri), dan Delete menghapus klip itu. Di pratinjau, panah menggeser klip terpilih 1 piksel (Shift: 10 piksel).
+Untuk klip yang sedang difokus: Enter memilih atau menjalankan alat aktif, panah menggeser klip, dan Delete menghapus klip itu. Di pratinjau, panah menggeser klip terpilih 1 piksel (Shift: 10 piksel).
 
 ## Struktur
 

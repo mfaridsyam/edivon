@@ -10,9 +10,8 @@ export interface ToolDef {
 
 /** Alat bermode: hanya satu yang aktif. Hapus adalah aksi dan didefinisikan terpisah. */
 export const TOOLS: readonly ToolDef[] = [
-  { id: 'select', label: 'Pilih', key: 'V', hint: 'Pilih dan geser klip' },
+  { id: 'select', label: 'Pilih', key: 'V', hint: 'Pilih dan geser klip, tarik ujungnya untuk memendekkan' },
   { id: 'split', label: 'Belah', key: 'S', hint: 'Klik klip untuk membelah' },
-  { id: 'trim', label: 'Potong', key: 'P', hint: 'Seret untuk memotong tepi klip' },
   { id: 'text', label: 'Teks', key: 'T', hint: 'Klik timeline untuk menambah teks' },
   { id: 'crop', label: 'Crop', key: 'C', hint: 'Crop klip di pratinjau' },
   { id: 'speed', label: 'Kecepatan', key: 'K', hint: 'Klik klip untuk mengatur kecepatan' },

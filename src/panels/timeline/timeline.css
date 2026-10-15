@@ -277,7 +277,6 @@
 
 /* Kursor sesuai alat */
 .tool-split .clip { cursor: crosshair; }
-.tool-trim .clip { cursor: ew-resize; }
 .tool-text .clip,
 .tool-text .tl-lane,
 .tool-speed .clip,

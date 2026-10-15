@@ -10,6 +10,7 @@ import {
   setSpeed,
   splitAt,
   splitClip,
+  trimAt,
   trimEnd,
   trimStart,
 } from './ops';
@@ -206,6 +207,26 @@ describe('trim', () => {
   it('gambar bisa diperpanjang tanpa batas sumber', () => {
     const p = trimEnd(projectWith(image('i', 0, 150)), 'i', 900);
     expect(clipEnd(findClip(p, 'i')!)).toBe(900);
+  });
+  it('memotong awal atau akhir ke playhead (Q/W)', () => {
+    const base = projectWith(video('a', 0, 60, { in: 1 }), audio('m', 30, 60));
+    const start = trimAt(base, 45, 'start');
+    expect(start.trimmed.sort()).toEqual(['a', 'm']);
+    expect(layout(start.project)).toEqual([['a', 45, 15]]);
+    expect(layout(start.project, 'track-audio-1')).toEqual([['m', 45, 45]]);
+    expect((findClip(start.project, 'a') as VideoClip).in).toBeCloseTo(2.5);
+
+    const end = trimAt(base, 45, 'end', ['a']);
+    expect(end.trimmed).toEqual(['a']);
+    expect(layout(end.project)).toEqual([['a', 0, 45]]);
+    expect(layout(end.project, 'track-audio-1')).toEqual([['m', 30, 60]]);
+  });
+
+  it('tidak memotong bila playhead di luar klip atau tepat di ujungnya', () => {
+    const base = projectWith(video('a', 30, 30));
+    expect(trimAt(base, 10, 'end').trimmed).toEqual([]);
+    expect(trimAt(base, 30, 'start').trimmed).toEqual([]);
+    expect(trimAt(base, 60, 'end').project).toBe(base);
   });
 });
 

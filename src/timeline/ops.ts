@@ -201,6 +201,29 @@ export function splitAt(
 }
 
 /**
+ * Memotong awal (`start`) atau akhir (`end`) klip ke frame tertentu, untuk klip yang dilalui frame itu
+ * (hanya `ids` bila diberikan). Bagian yang terpotong tetap bisa dikembalikan dengan menarik ujung klip.
+ */
+export function trimAt(
+  project: Project,
+  frame: number,
+  edge: 'start' | 'end',
+  ids?: readonly string[],
+): { project: Project; trimmed: string[] } {
+  const targets = project.clips.filter(
+    (c) => (!ids || ids.includes(c.id)) && c.start < frame && frame < clipEnd(c),
+  );
+  let p = project;
+  const trimmed: string[] = [];
+  for (const c of targets) {
+    const next = edge === 'start' ? trimStart(p, c.id, frame) : trimEnd(p, c.id, frame);
+    if (next !== p) trimmed.push(c.id);
+    p = next;
+  }
+  return { project: p, trimmed };
+}
+
+/**
  * Mengubah kecepatan klip video/audio. Isi sumber yang dipakai tetap sama,
  * sehingga durasi di timeline berubah. Klip di kanannya didorong bila perlu.
  */

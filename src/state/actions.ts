@@ -23,6 +23,7 @@ import {
   splitAt,
   setSpeed,
   splitClip,
+  trimAt,
   updateClip,
   updateTrack,
 } from '../timeline/ops';
@@ -59,6 +60,23 @@ export function splitAtPlayhead(): void {
     return;
   }
   s.announce(`Klip dibelah di ${formatTimecode(s.playhead)}.`);
+}
+
+/** Memotong awal (Q) atau akhir (W) klip terpilih ke playhead; bila tidak ada yang terpilih, semua klip di bawah playhead. */
+export function trimToPlayhead(edge: 'start' | 'end'): void {
+  const s = editor.get();
+  const ids = s.selection.length > 0 ? s.selection : undefined;
+  let trimmed: string[] = [];
+  s.apply((p) => {
+    const r = trimAt(p, s.playhead, edge, ids);
+    trimmed = r.trimmed;
+    return r.project;
+  });
+  if (trimmed.length === 0) {
+    s.announce(ids ? 'Playhead tidak berada di dalam klip terpilih.' : 'Playhead tidak berada di dalam klip.');
+    return;
+  }
+  s.announce(`${edge === 'start' ? 'Awal' : 'Akhir'} klip dipotong ke ${formatTimecode(s.playhead)}.`);
 }
 
 export function splitClipAt(id: string, frame: number): void {

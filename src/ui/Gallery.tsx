@@ -140,7 +140,6 @@ export function Gallery() {
         <Row>
           <ToolButton icon={<I.IconCursor />} label="Pilih" shortcut="V" pressed={tool === 'select'} onClick={() => setTool('select')} />
           <ToolButton icon={<I.IconSplit />} label="Belah" shortcut="S" pressed={tool === 'split'} onClick={() => setTool('split')} />
-          <ToolButton icon={<I.IconTrim />} label="Potong" shortcut="P" pressed={tool === 'trim'} onClick={() => setTool('trim')} />
           <ToolButton icon={<I.IconText />} label="Teks" shortcut="T" pressed={tool === 'text'} onClick={() => setTool('text')} />
           <ToolButton icon={<I.IconEffect />} label="Hover" pressed={false} data-force="hover" />
           <ToolButton icon={<I.IconTrash />} label="Hapus" shortcut="Delete" danger />
