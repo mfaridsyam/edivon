@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import './layout.css';
 import { TopBar } from './TopBar';
 import { NARROW_QUERY, useUi } from './uiState';
+import { installShortcuts } from './shortcuts';
 import { useEditor } from '../state/store';
 import { MediaBin } from '../panels/MediaBin';
 import { Stage } from '../panels/Stage';
@@ -21,6 +22,8 @@ function LiveRegion() {
 export function App() {
   const narrow = useUi((s) => s.narrow);
   const leftOpen = useUi((s) => s.leftOpen);
+
+  useEffect(() => installShortcuts(), []);
 
   useEffect(() => {
     const mq = window.matchMedia(NARROW_QUERY);

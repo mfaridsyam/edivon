@@ -2,6 +2,7 @@ import './timeline/timeline.css';
 import { useEditor } from '../state/store';
 import { Toolbar } from './Toolbar';
 import { TimelineBody } from './timeline/TimelineBody';
+import { ClipPopover } from './timeline/ClipPopover';
 
 export function Timeline() {
   const tool = useEditor((s) => s.tool);
@@ -9,6 +10,7 @@ export function Timeline() {
     <div className={`timeline tool-${tool}`}>
       <Toolbar />
       <TimelineBody />
+      <ClipPopover />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react';
-import { selectClip, splitClipAt } from '../../state/actions';
+import { deleteSelection, selectClip, splitClipAt } from '../../state/actions';
 import { editor } from '../../state/store';
 import {
   CLIP_TYPE_LABEL,
@@ -218,6 +218,13 @@ export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoo
       if (s.tool === 'text' || s.tool === 'speed' || s.tool === 'volume' || s.tool === 'effect') {
         clipToolAction(clip.id, e.currentTarget);
       }
+      return;
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!selected) selectClip(clip.id);
+      deleteSelection();
       return;
     }
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;

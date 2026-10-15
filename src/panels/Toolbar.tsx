@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { deleteSelection } from '../state/actions';
+import { deleteSelection, setTool } from '../state/actions';
 import { useEditor, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN, type ToolId } from '../state/store';
 import { DELETE_TOOL, TOOLS } from '../state/tools';
 import { IconButton, ToolButton } from '../ui/Button';
@@ -43,7 +43,6 @@ function sliderToZoom(v: number): number {
 /** Bilah alat di atas timeline: alat bermode, Hapus, dan zoom. */
 export function Toolbar() {
   const tool = useEditor((s) => s.tool);
-  const setTool = useEditor((s) => s.setTool);
   const hasSelection = useEditor((s) => s.selection.length > 0);
   const zoom = useEditor((s) => s.zoom);
   const setZoom = useEditor((s) => s.setZoom);

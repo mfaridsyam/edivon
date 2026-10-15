@@ -1,4 +1,7 @@
 import {
+  DEFAULT_ADJUST,
+  DEFAULT_CROP,
+  DEFAULT_TRANSFORM,
   EFFECT_LABEL,
   clipEnd,
   clipLabel,
@@ -6,7 +9,10 @@ import {
   findTrack,
   projectDuration,
   trackKindFor,
+  isSourceTimed,
+  type Clip,
   type EffectId,
+  type Speed,
   type TrackKind,
 } from '../timeline/model';
 import {
@@ -15,12 +21,14 @@ import {
   ensureTrackFor,
   placeClip,
   splitAt,
+  setSpeed,
   splitClip,
+  updateClip,
   updateTrack,
 } from '../timeline/ops';
 import { TEXT_PRESETS, clipFromMedia, effectClip, textClipFromPreset, type TextPresetId } from './clipFactory';
 import { formatTimecode } from '../timeline/time';
-import { editor } from './store';
+import { editor, type ToolId } from './store';
 
 /* Aksi tingkat tinggi yang dipakai bersama oleh tombol, pintasan, dan panel. */
 
@@ -163,7 +171,14 @@ export function addMediaToTimeline(mediaId: string, at?: Placement): void {
   s.announce(`${media.name} ditambahkan di ${formatTimecode(start)}.`);
 }
 
-export function addTextClip(presetId: TextPresetId, at?: Placement & { duration?: number }): void {
+export interface LoosePlacement {
+  /** Bila tidak diisi, dipakai lajur pertama yang cocok (dibuat bila belum ada). */
+  trackId?: string;
+  start: number;
+  duration?: number;
+}
+
+export function addTextClip(presetId: TextPresetId, at?: LoosePlacement): void {
   const s = editor.get();
   const preset = TEXT_PRESETS.find((t) => t.id === presetId) ?? TEXT_PRESETS[0];
   if (!preset) return;
@@ -188,7 +203,7 @@ export function addTextClip(presetId: TextPresetId, at?: Placement & { duration?
 /**
  * Menambah klip efek. Tanpa `at`: menutupi klip visual terpilih bila ada, selain itu 3 detik di playhead.
  */
-export function addEffectClip(effect: EffectId, at?: Placement & { duration?: number }): void {
+export function addEffectClip(effect: EffectId, at?: LoosePlacement): void {
   const s = editor.get();
   let start = at?.start ?? s.playhead;
   let duration = at?.duration;
@@ -214,4 +229,72 @@ export function addEffectClip(effect: EffectId, at?: Placement & { duration?: nu
   });
   s.select([clipId]);
   s.announce(`Efek ${EFFECT_LABEL[effect].toLowerCase()} ditambahkan.`);
+}
+
+/* ---------- Mengubah properti klip ---------- */
+
+/** Mengubah klip dengan riwayat yang digabung per kunci, agar slider yang digeser menjadi satu langkah undo. */
+export function patchClip(id: string, key: string, fn: (clip: Clip) => Clip): void {
+  editor.get().apply((p) => updateClip(p, id, fn), { coalesce: `${id}:${key}` });
+}
+
+export function changeSpeed(id: string, speed: Speed): void {
+  const s = editor.get();
+  const clip = findClip(s.project, id);
+  if (!clip || !isSourceTimed(clip)) return;
+  s.apply((p) => setSpeed(p, id, speed));
+  s.announce(`Kecepatan ${String(speed).replace('.', ',')} kali.`);
+}
+
+/** Klip efek di atas klip visual: menutupi rentang klip itu. Klip efek: mengganti jenis efeknya. */
+export function applyEffectToClip(id: string, effect: EffectId): void {
+  const s = editor.get();
+  const clip = findClip(s.project, id);
+  if (!clip) return;
+  if (clip.type === 'effect') {
+    s.apply((p) => updateClip(p, id, (c) => (c.type === 'effect' ? { ...c, effect } : c)));
+    s.announce(`Efek diganti menjadi ${EFFECT_LABEL[effect].toLowerCase()}.`);
+    return;
+  }
+  if (clip.type === 'audio') {
+    s.announce('Efek hanya untuk klip video, gambar, dan teks.');
+    return;
+  }
+  addEffectClip(effect, { start: clip.start, duration: clip.duration });
+}
+
+export function setTool(tool: ToolId): void {
+  const s = editor.get();
+  s.setTool(tool);
+  if (tool === 'text') s.setLeftTab('text');
+  if (tool === 'effect') s.setLeftTab('effect');
+}
+
+/** "Setel ulang" satu tab Inspector, dicatat sebagai satu langkah undo. */
+export function resetClip(id: string, scope: 'video' | 'audio' | 'color'): void {
+  const s = editor.get();
+  s.apply((p) => {
+    const clip = findClip(p, id);
+    if (!clip) return p;
+    let next = p;
+    if ((scope === 'video' && clip.type === 'video') || (scope === 'audio' && clip.type === 'audio')) {
+      next = setSpeed(next, id, 1);
+    }
+    return updateClip(next, id, (c) => {
+      if (scope === 'color') return 'adjust' in c ? { ...c, adjust: DEFAULT_ADJUST } : c;
+      if (scope === 'audio') return c.type === 'video' || c.type === 'audio' ? { ...c, volume: 1 } : c;
+      switch (c.type) {
+        case 'video':
+        case 'image':
+          return { ...c, transform: DEFAULT_TRANSFORM, crop: DEFAULT_CROP };
+        case 'text':
+          return { ...c, transform: DEFAULT_TRANSFORM };
+        case 'effect':
+          return { ...c, opacity: 1 };
+        default:
+          return c;
+      }
+    });
+  });
+  s.announce('Properti disetel ulang.');
 }
