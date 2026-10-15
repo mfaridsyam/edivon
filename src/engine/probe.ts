@@ -1,5 +1,7 @@
 import { ALL_FORMATS, BlobSource, Input } from 'mediabunny';
 import type { MediaKind } from '../state/media';
+import { codecLabel } from './codecs';
+import { prepareVideoTrack, usesLenientDecoder } from './hevcDecoder';
 
 export interface ProbeResult {
   duration: number;
@@ -8,6 +10,8 @@ export interface ProbeResult {
   hasAudio: boolean;
   /** Bisa dibaca dan didekode WebCodecs untuk ekspor. */
   exportable: boolean;
+  /** Pratinjau memakai dekode WebCodecs, bukan frame elemen <video>. */
+  decodePreview: boolean;
 }
 
 const EXTENSIONS: Record<string, MediaKind> = {
@@ -39,7 +43,10 @@ async function probeContainer(file: File) {
       height: video ? await video.getDisplayHeight() : 0,
       hasVideo: video !== null,
       hasAudio: audio !== null,
-      videoDecodable: video ? await video.canDecode() : false,
+      videoCodec: video ? await video.getCodec() : null,
+      // Menyiapkan jalur dekode toleran (mis. HEVC dari kamera CCTV) sebelum memeriksa dukungan.
+      videoDecodable: video ? await prepareVideoTrack(video) : false,
+      lenient: video ? await usesLenientDecoder(video) : false,
       audioDecodable: audio ? await audio.canDecode() : false,
     };
   } catch {
@@ -83,6 +90,10 @@ export async function probeVideo(file: File, url: string): Promise<ProbeResult> 
   el.removeAttribute('src');
   el.load();
   if (meta instanceof Error) throw meta;
+  if (meta.width === 0 && container?.hasVideo) {
+    // Browser hanya bisa membaca suaranya; codec videonya tidak didukung.
+    throw new Error(`Video ${codecLabel(container.videoCodec)} tidak bisa diputar di browser ini. Coba Chrome atau Brave terbaru.`);
+  }
   const duration = Number.isFinite(meta.duration) && meta.duration > 0 ? meta.duration : (container?.duration ?? 0);
   if (!(duration > 0)) throw new Error('Durasi video tidak bisa dibaca.');
   return {
@@ -91,6 +102,7 @@ export async function probeVideo(file: File, url: string): Promise<ProbeResult> 
     height: meta.height || container?.height || 0,
     hasAudio: container ? container.hasAudio : true,
     exportable: Boolean(container?.hasVideo && container.videoDecodable),
+    decodePreview: Boolean(container?.lenient),
   };
 }
 
@@ -114,6 +126,7 @@ export async function probeAudio(file: File, url: string): Promise<ProbeResult> 
     height: 0,
     hasAudio: true,
     exportable: Boolean(container?.hasAudio && container.audioDecodable),
+    decodePreview: false,
   };
 }
 
@@ -124,5 +137,5 @@ export async function probeImage(file: File): Promise<ProbeResult & { bitmap: Im
   } catch {
     throw new Error('Gambar ini tidak bisa dibaca.');
   }
-  return { duration: 0, width: bitmap.width, height: bitmap.height, hasAudio: false, exportable: true, bitmap };
+  return { duration: 0, width: bitmap.width, height: bitmap.height, hasAudio: false, exportable: true, decodePreview: false, bitmap };
 }

@@ -35,6 +35,7 @@ export function importFiles(files: Iterable<File>): void {
       hasAudio: kind !== 'image',
       thumbnail: null,
       exportable: true,
+      decodePreview: false,
     };
     s.addMedia(item);
     void analyze(item);

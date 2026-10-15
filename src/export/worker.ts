@@ -16,6 +16,8 @@ import {
   type WrappedCanvas,
 } from 'mediabunny';
 import { drawFrame, layersAt, type Ctx2D, type FrameSource } from '../engine/compositor';
+import { prepareVideoTrack } from '../engine/hevcDecoder';
+import { codecLabel } from '../engine/codecs';
 import { findTrack, hasAudio, isSourceTimed, projectDuration, sourceTimeAt, type VideoClip } from '../timeline/model';
 import { FPS } from '../timeline/time';
 import { mixBlock, type AudibleClip } from './audioMix';
@@ -81,9 +83,12 @@ async function run(msg: StartMessage) {
     try {
       const video = m.kind === 'video' ? await input.getPrimaryVideoTrack() : null;
       const audio = await input.getPrimaryAudioTrack();
-      const videoOk = video ? await video.canDecode() : false;
+      const videoOk = video ? await prepareVideoTrack(video) : false;
       const audioOk = audio ? await audio.canDecode() : false;
-      if (video && !videoOk) warnings.add(`Video ${m.name} tidak bisa didekode di browser ini dan dilewati.`);
+      if (video && !videoOk) {
+        const codec = codecLabel(await video.getCodec());
+        warnings.add(`Video ${m.name} (${codec}) tidak bisa didekode di browser ini dan dilewati. Coba Chrome atau Brave terbaru.`);
+      }
       if (audio && !audioOk) warnings.add(`Suara ${m.name} tidak bisa didekode di browser ini dan dilewati.`);
       sources.set(m.id, {
         input,

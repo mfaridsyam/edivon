@@ -11,6 +11,7 @@ import {
 } from '../timeline/model';
 import { FPS } from '../timeline/time';
 import { drawFrame, type Ctx2D, type FrameSource } from './compositor';
+import { DecodedSource } from './decodedSource';
 import { resolveTextColors } from './tokens';
 
 /** Satu elemen media tersembunyi. Dipakai ulang oleh klip lain dari sumber yang sama bila sedang bebas. */
@@ -44,6 +45,10 @@ export class PreviewEngine {
   private readonly host: HTMLDivElement;
   private slots: Slot[] = [];
   private images = new Map<string, ImageBitmap | 'loading' | 'error'>();
+  /** Sumber frame terdekode per media, untuk video yang tidak bisa di-seek akurat oleh <video>. */
+  private decoded = new Map<string, DecodedSource>();
+  /** Frame (pecahan) yang sedang digambar, untuk menghitung waktu sumber yang tepat. */
+  private drawExact = 0;
   private audio: AudioContext | null = null;
   private raf = 0;
   private drawQueued = false;
@@ -95,6 +100,8 @@ export class PreviewEngine {
     this.slots = [];
     for (const img of this.images.values()) if (typeof img === 'object') img.close();
     this.images.clear();
+    for (const d of this.decoded.values()) d.dispose();
+    this.decoded.clear();
     this.host.remove();
     void this.audio?.close();
   }
@@ -176,7 +183,7 @@ export class PreviewEngine {
         this.clock = { startFrame: this.clock.startFrame, startTime: now };
       } else {
         this.syncPlaying(this.clock.startFrame);
-        this.draw(Math.floor(this.clock.startFrame));
+        this.draw(this.clock.startFrame);
         this.raf = requestAnimationFrame(this.tick);
         return;
       }
@@ -194,7 +201,7 @@ export class PreviewEngine {
       s.setPlayhead(frame);
     }
     this.syncPlaying(exact);
-    this.draw(frame);
+    this.draw(exact);
     this.raf = requestAnimationFrame(this.tick);
   };
 
@@ -369,6 +376,15 @@ export class PreviewEngine {
 
   private resolve = (clip: VideoClip | ImageClip): FrameSource | null => {
     if (clip.type === 'image') return this.imageSource(clip.mediaId);
+    const media = this.mediaFor(clip.mediaId);
+    if (media?.decodePreview) {
+      let source = this.decoded.get(media.id);
+      if (!source) {
+        source = new DecodedSource(media.file, () => this.requestDraw());
+        this.decoded.set(media.id, source);
+      }
+      return source.frameAt(sourceTimeAt(clip, this.drawExact), this.clock !== null);
+    }
     const slot = this.slots.find((s) => s.clipId === clip.id);
     const el = slot?.el;
     if (!(el instanceof HTMLVideoElement) || el.readyState < 2 || el.videoWidth === 0) return null;
@@ -396,9 +412,11 @@ export class PreviewEngine {
     return null;
   }
 
-  private draw(frame: number): void {
+  private draw(exact: number): void {
     const { canvas, ctx } = this;
     if (!canvas || !ctx) return;
+    this.drawExact = exact;
+    const frame = Math.floor(exact);
     drawFrame(
       {
         ctx,

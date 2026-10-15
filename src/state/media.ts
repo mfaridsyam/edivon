@@ -19,4 +19,9 @@ export interface MediaItem {
   thumbnail: string | null;
   /** False bila browser bisa memutar tapi pembacaan untuk ekspor tidak didukung. */
   exportable: boolean;
+  /**
+   * True bila gambar pratinjau harus didekode lewat WebCodecs karena elemen <video> tidak bisa
+   * di-seek akurat (mis. HEVC dari kamera CCTV dengan parameter codec rusak).
+   */
+  decodePreview: boolean;
 }

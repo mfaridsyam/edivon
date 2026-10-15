@@ -50,6 +50,8 @@ Setiap push ke branch utama akan memicu deploy baru.
 - **Ekspor butuh WebCodecs** (`VideoEncoder` dan `AudioEncoder`). Gunakan Chrome atau Edge versi terbaru di desktop. Kalau browser tidak mendukung, Klip menampilkan pesan dan pratinjau tetap bisa dipakai.
 - Pilihan format dan resolusi di dialog ekspor mengikuti kemampuan encoder browser. Contohnya, 4K atau MP4 bisa tidak tersedia, dan WebM dipakai sebagai cadangan.
 - Ada berkas yang bisa diputar browser tetapi codec-nya tidak bisa didekode WebCodecs. Kartunya diberi keterangan "Belum bisa diekspor di browser ini".
+- Video H.265 (HEVC), yang umum dipakai kamera CCTV/DVR, butuh dekoder HEVC hardware. Di Windows, pakai Chrome atau Brave. Edge baru bisa setelah ekstensi HEVC Video Extensions dari Microsoft Store dipasang.
+- Banyak rekaman CCTV menyimpan parameter codec HEVC yang rusak. Klip tetap membacanya lewat dekoder toleran: parameter diperbaiki atau stream diubah ke Annex B. Karena `<video>` tidak bisa di-seek akurat untuk berkas seperti ini, gambar pratinjaunya juga didekode lewat WebCodecs supaya sama persis dengan hasil ekspor. Berkas sangat besar dengan indeks di akhir berkas butuh beberapa detik untuk tampil pertama kali.
 - Hasil ekspor disimpan di memori sampai diunduh. Video 4K yang panjang bisa memakan banyak memori.
 - Perubahan kecepatan juga mengubah pitch suara, baik di pratinjau maupun hasil ekspor.
 - Proyek tidak disimpan otomatis. Menutup atau memuat ulang tab akan menghapus timeline dan media yang sudah diimpor.
