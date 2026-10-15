@@ -1,6 +1,6 @@
-import { deleteSelection, jumpToEnd, jumpToStart, setTool, trimToPlayhead } from '../state/actions';
+import { cutAtPlayhead, deleteSelection, jumpToEnd, jumpToStart, setTool } from '../state/actions';
 import { editor } from '../state/store';
-import { toolByKey } from '../state/tools';
+import { cutByKey, toolByKey } from '../state/tools';
 import { closeClipPopover, useClipPopover } from '../panels/timeline/clipTools';
 import { FPS } from '../timeline/time';
 import { useUi } from './uiState';
@@ -21,7 +21,7 @@ function inOverlay(target: EventTarget | null): boolean {
 }
 
 /**
- * Pintasan global: alat (V S T C K A E), potong ke playhead (Q W), Delete/Backspace, Spasi, undo/redo,
+ * Pintasan global: alat (V T C K A F), potong kiri/belah/potong kanan di playhead (Q W E), Delete/Backspace, Spasi, undo/redo,
  * Home/End, dan panah untuk playhead saat tidak ada kontrol yang menangani panah.
  */
 export function installShortcuts(): () => void {
@@ -90,9 +90,11 @@ export function installShortcuts(): () => void {
       return;
     }
 
-    if (!mod && !e.altKey && (key === 'q' || key === 'Q' || key === 'w' || key === 'W')) {
+    // Q/W/E: potong kiri, belah, potong kanan di garis merah.
+    const cut = !mod && !e.altKey ? cutByKey(key) : undefined;
+    if (cut) {
       e.preventDefault();
-      trimToPlayhead(key.toLowerCase() === 'q' ? 'start' : 'end');
+      cutAtPlayhead(cut.id);
       return;
     }
 

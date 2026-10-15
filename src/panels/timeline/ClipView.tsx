@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react';
-import { deleteSelection, selectClip, splitClipAt } from '../../state/actions';
+import { deleteSelection, selectClip } from '../../state/actions';
 import { editor } from '../../state/store';
 import {
   CLIP_TYPE_LABEL,
@@ -8,7 +8,6 @@ import {
   findTrack,
   trackAccepts,
   type Clip,
-  type Project,
 } from '../../timeline/model';
 import { moveClip, nudgeClip, trimEnd, trimStart } from '../../timeline/ops';
 import { snapDelta, snapTargets, snapThreshold } from '../../timeline/snap';
@@ -58,14 +57,6 @@ function clipClass(type: Clip['type']): string {
   return type === 'image' ? 'clip-video' : `clip-${type}`;
 }
 
-/** Frame di bawah pointer, ditempelkan ke playhead dan tepi klip lain bila dekat. */
-export function frameAtPointer(project: Project, clip: Clip, clientX: number, rect: DOMRect): number {
-  const s = editor.get();
-  const raw = clip.start + xToFrame(clientX - rect.left, s.zoom);
-  const snap = snapDelta([raw], snapTargets(project, new Set([clip.id]), s.playhead), snapThreshold(s.zoom, FPS));
-  return raw + snap.delta;
-}
-
 function rowAtY(el: HTMLElement, clientY: number): number {
   const rows = el.closest('.tl-rows');
   if (!rows) return -1;
@@ -105,10 +96,6 @@ export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoo
     const rect = el.getBoundingClientRect();
     const ox = e.clientX - rect.left;
 
-    if (s.tool === 'split') {
-      splitClipAt(clip.id, frameAtPointer(s.project, clip, e.clientX, rect));
-      return;
-    }
     if (s.tool === 'text' || s.tool === 'speed' || s.tool === 'volume' || s.tool === 'effect') {
       selectClip(clip.id);
       clipToolAction(clip.id, el);
@@ -175,14 +162,6 @@ export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoo
         s.updateGesture((b) => trimEnd(b, clip.id, end));
         useTimelineUi.setState({ snapFrame: snap.target });
       }
-      return;
-    }
-
-    // Pratinjau garis belah saat alat Belah aktif.
-    const s = editor.get();
-    if (s.tool === 'split' && !s.gestureBase) {
-      const frame = frameAtPointer(s.project, clip, e.clientX, e.currentTarget.getBoundingClientRect());
-      useTimelineUi.setState({ splitHover: { clipId: clip.id, frame } });
     }
   };
 
@@ -208,11 +187,6 @@ export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoo
     const s = editor.get();
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (s.tool === 'split') {
-        if (s.playhead > clip.start && s.playhead < clipEnd(clip)) splitClipAt(clip.id, s.playhead);
-        else s.announce('Pindahkan playhead ke dalam klip untuk membelah.');
-        return;
-      }
       selectClip(clip.id, e.shiftKey);
       if (s.tool === 'text' || s.tool === 'speed' || s.tool === 'volume' || s.tool === 'effect') {
         clipToolAction(clip.id, e.currentTarget);
@@ -254,7 +228,6 @@ export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoo
       onPointerUp={(e) => finish(e, true)}
       onPointerCancel={(e) => finish(e, false)}
       onLostPointerCapture={(e) => finish(e, true)}
-      onPointerLeave={() => useTimelineUi.setState({ splitHover: null })}
       onKeyDown={onKeyDown}
     >
       <span className="clip-handle clip-handle-start" aria-hidden="true" />

@@ -43,11 +43,21 @@ export const IconSplit = (p: IconProps) => (
   </Icon>
 );
 
-export const IconTrim = (p: IconProps) => (
+/** Potong kiri: bagian kiri garis dibuang (garis putus-putus). */
+export const IconCutLeft = (p: IconProps) => (
   <Icon {...p}>
-    <circle cx="6" cy="7" r="2.5" />
-    <circle cx="6" cy="17" r="2.5" />
-    <path d="M8.2 8.3L20 17M8.2 15.7L20 7" />
+    <rect x="3" y="7" width="6.5" height="10" rx="1.5" strokeDasharray="2 2.25" />
+    <rect x="14.5" y="7" width="6.5" height="10" rx="1.5" />
+    <path d="M12 3v18" />
+  </Icon>
+);
+
+/** Potong kanan: bagian kanan garis dibuang (garis putus-putus). */
+export const IconCutRight = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="7" width="6.5" height="10" rx="1.5" />
+    <rect x="14.5" y="7" width="6.5" height="10" rx="1.5" strokeDasharray="2 2.25" />
+    <path d="M12 3v18" />
   </Icon>
 );
 

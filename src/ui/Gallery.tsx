@@ -15,7 +15,7 @@ const TOKENS = [
 ] as const;
 
 const ICONS: [string, (p: I.IconProps) => ReactNode][] = [
-  ['kursor', I.IconCursor], ['belah', I.IconSplit], ['potong', I.IconTrim], ['teks', I.IconText],
+  ['kursor', I.IconCursor], ['belah', I.IconSplit], ['potong kiri', I.IconCutLeft], ['potong kanan', I.IconCutRight], ['teks', I.IconText],
   ['crop', I.IconCrop], ['kecepatan', I.IconSpeed], ['volume', I.IconVolume], ['bisu', I.IconVolumeOff],
   ['efek', I.IconEffect], ['hapus', I.IconTrash], ['undo', I.IconUndo], ['redo', I.IconRedo],
   ['unduh', I.IconDownload], ['plus', I.IconPlus], ['minus', I.IconMinus], ['film', I.IconFilm],
@@ -139,7 +139,9 @@ export function Gallery() {
       <Section title="Alat">
         <Row>
           <ToolButton icon={<I.IconCursor />} label="Pilih" shortcut="V" pressed={tool === 'select'} onClick={() => setTool('select')} />
-          <ToolButton icon={<I.IconSplit />} label="Belah" shortcut="S" pressed={tool === 'split'} onClick={() => setTool('split')} />
+          <ToolButton icon={<I.IconCutLeft />} label="Potong kiri" shortcut="Q" className="tool-wide" />
+          <ToolButton icon={<I.IconSplit />} label="Belah" shortcut="W" className="tool-wide" />
+          <ToolButton icon={<I.IconCutRight />} label="Potong kanan" shortcut="E" className="tool-wide" />
           <ToolButton icon={<I.IconText />} label="Teks" shortcut="T" pressed={tool === 'text'} onClick={() => setTool('text')} />
           <ToolButton icon={<I.IconEffect />} label="Hover" pressed={false} data-force="hover" />
           <ToolButton icon={<I.IconTrash />} label="Hapus" shortcut="Delete" danger />

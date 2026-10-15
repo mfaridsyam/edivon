@@ -19,7 +19,7 @@ export function closeClipPopover(): void {
   if (open.returnFocus?.isConnected) open.returnFocus.focus();
 }
 
-/** Aksi alat saat klip diklik atau ditekan Enter (selain Pilih, Belah, Crop). */
+/** Aksi alat saat klip diklik atau ditekan Enter (selain Pilih dan Crop). */
 export function clipToolAction(clipId: string, el: HTMLElement): void {
   const s = editor.get();
   const tool = s.tool;

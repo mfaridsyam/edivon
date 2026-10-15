@@ -22,14 +22,11 @@ export function xToFrame(x: number, zoom: number): number {
 interface TimelineUi {
   /** Frame garis bantu tempel saat menyeret, atau null. */
   snapFrame: number | null;
-  /** Garis pratinjau alat Belah: id klip dan frame. */
-  splitHover: { clipId: string; frame: number } | null;
   /** Bayangan klip saat media diseret dari panel: lajur, frame awal, durasi. */
   dropGhost: { trackId: string; start: number; duration: number } | null;
 }
 
 export const useTimelineUi = create<TimelineUi>()(() => ({
   snapFrame: null,
-  splitHover: null,
   dropGhost: null,
 }));

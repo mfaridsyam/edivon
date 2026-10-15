@@ -53,13 +53,13 @@ test('impor dua berkas, belah, urutkan, lalu ekspor', async ({ page }, testInfo)
   // Perbesar timeline agar klip cukup lebar untuk diklik.
   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Perbesar timeline' }).click();
 
-  // Belah: alat Belah (S), klik di tengah klip pertama.
-  await page.keyboard.press('s');
-  await expect(page.getByRole('button', { name: 'Belah' })).toHaveAttribute('aria-pressed', 'true');
-  const first = page.locator('[aria-roledescription="klip"]').first();
-  const box = await first.boundingBox();
-  if (!box) throw new Error('Klip pertama tidak terlihat');
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  // Belah: garis merah ke tengah klip pertama (detik 2), lalu tombol Belah.
+  const playhead = page.getByRole('slider', { name: 'Playhead' });
+  await playhead.focus();
+  await page.keyboard.press('Home');
+  await expect(page.getByRole('button', { name: 'Belah' })).toBeDisabled();
+  for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowRight');
+  await page.getByRole('button', { name: 'Belah' }).click();
   await expect(page.locator('[aria-roledescription="klip"]')).toHaveCount(3);
   await expect(page.getByRole('status')).toContainText('dibelah');
 

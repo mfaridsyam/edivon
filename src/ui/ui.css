@@ -519,3 +519,9 @@
   line-height: 14px;
   color: var(--border);
 }
+/* Aksi dengan label panjang (Potong kiri/kanan) */
+.tool-wide {
+  width: auto;
+  min-width: 64px;
+  padding: 0 var(--space-2);
+}

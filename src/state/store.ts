@@ -13,7 +13,7 @@ import {
 } from './history';
 import type { MediaItem } from './media';
 
-export type ToolId = 'select' | 'split' | 'text' | 'crop' | 'speed' | 'volume' | 'effect';
+export type ToolId = 'select' | 'text' | 'crop' | 'speed' | 'volume' | 'effect';
 export type LeftTab = 'media' | 'audio' | 'text' | 'effect';
 export type RightTab = 'video' | 'audio' | 'color';
 

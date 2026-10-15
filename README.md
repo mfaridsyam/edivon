@@ -7,7 +7,8 @@ Editor video yang berjalan sepenuhnya di browser. Tidak ada server dan tidak ada
 - Impor video, audio, dan gambar lewat seret-lepas atau tombol **Pilih berkas**. Durasi, dimensi, dan thumbnail dibaca di browser.
 - Timeline dengan lajur Teks, Video 2, Video 1, dan Audio 1. Kamu bisa menambah lajur video, audio, teks, atau efek. Klip bisa digeser antarlajur, menempel ke klip lain dan playhead, di-trim dari tepi, dibelah, dan dihapus. Ada juga zoom timeline.
 - Video 1 adalah lajur utama yang magnetis: klipnya selalu rapat ke kiri mulai 0:00 tanpa celah, baik saat ditambah, diseret (urutannya bertukar), dipotong, diubah kecepatannya, maupun dihapus. Lajur lain (Video 2, Teks, Audio, Efek) bebas diatur posisinya.
-- Alat: Pilih, Belah, Teks, Crop, Kecepatan, Volume, Efek, dan Hapus. Dengan alat Pilih, tarik ujung klip untuk memendekkan atau memanjangkannya. Q dan W memotong awal atau akhir klip ke posisi playhead.
+- Alat: Pilih, Teks, Crop, Kecepatan, Volume, Efek, dan Hapus. Dengan alat Pilih, tarik ujung klip untuk memendekkan atau memanjangkannya.
+- Aksi di garis merah (playhead): **Potong kiri** (Q) membuang bagian klip sebelum garis, **Belah** (W) membelah klip di garis, dan **Potong kanan** (E) membuang bagian sesudah garis. Yang dikenai adalah klip terpilih di bawah garis. Tanpa pilihan, Belah mengenai semua klip di bawah garis, sedangkan Potong kiri/kanan hanya klip Video 1 supaya musik dan teks tetap sinkron.
 - Properti klip: skala, posisi, rotasi, opasitas, kecepatan (0,5× sampai 4×), kecerahan, kontras, saturasi, volume, dan tombol **Setel ulang**.
 - Klip video, gambar, dan teks bisa dipilih langsung di pratinjau. Seret untuk memindahkannya (menempel ke garis tengah), atau tarik sudutnya untuk mengubah skala.
 - Pratinjau dengan rasio 16:9, 9:16, atau 1:1, plus timecode dan layar penuh.
@@ -72,13 +73,14 @@ Setiap push ke branch utama akan memicu deploy baru.
 | Tombol | Aksi |
 |---|---|
 | V | Alat Pilih |
-| S | Alat Belah |
 | T | Alat Teks |
 | C | Alat Crop |
 | K | Alat Kecepatan |
 | A | Alat Volume |
-| E | Alat Efek |
-| Q / W | Potong awal / akhir klip terpilih ke playhead (tanpa pilihan: semua klip di bawah playhead) |
+| F | Alat Efek |
+| Q | Potong kiri: buang bagian klip sebelum garis merah |
+| W | Belah klip di garis merah |
+| E | Potong kanan: buang bagian klip sesudah garis merah |
 | Delete / Backspace | Hapus klip terpilih |
 | Spasi | Putar / jeda |
 | Ctrl/Cmd + Z | Urungkan |

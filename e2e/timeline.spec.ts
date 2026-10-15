@@ -9,7 +9,7 @@ function fixture(prefix: string): string {
   return join(FIXTURE_DIR, name);
 }
 
-test('memendekkan klip: tarik ujung dengan alat Pilih, atau Q/W ke playhead', async ({ page }) => {
+test('memendekkan klip: tarik ujung dengan alat Pilih, atau Q/E di garis merah', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('Pilih berkas video, audio, atau gambar').setInputFiles(fixture('contoh-pantai'));
   const card = page.getByRole('option', { name: /contoh-pantai.*durasi/ });
@@ -17,7 +17,7 @@ test('memendekkan klip: tarik ujung dengan alat Pilih, atau Q/W ke playhead', as
   await page.keyboard.press('Enter');
 
   // Alat Potong sudah tidak ada; Pilih cukup untuk memendekkan.
-  await expect(page.getByRole('button', { name: 'Potong' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Potong', exact: true })).toHaveCount(0);
   const clip = page.locator('[aria-roledescription="klip"]');
   await expect(clip).toHaveAttribute('aria-label', /Mulai 00:00:00\.00, durasi 4 detik/);
   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Perbesar timeline' }).click();
@@ -36,25 +36,27 @@ test('memendekkan klip: tarik ujung dengan alat Pilih, atau Q/W ke playhead', as
   await page.keyboard.press('Control+z');
   await expect(clip).toHaveAttribute('aria-label', /durasi 4 detik/);
 
-  // W: akhir klip terpilih dipotong ke playhead (detik 3).
+  // E (Potong kanan): bagian sesudah garis merah (detik 3) dibuang.
   const playhead = page.getByRole('slider', { name: 'Playhead' });
   await playhead.focus();
   await page.keyboard.press('Home');
   for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowRight');
-  await page.keyboard.press('w');
+  await page.keyboard.press('e');
   await expect(clip).toHaveAttribute('aria-label', /Mulai 00:00:00\.00, durasi 3 detik/);
-  await expect(page.getByRole('status')).toContainText('Akhir klip dipotong ke 00:00:03.00');
+  await expect(page.getByRole('status')).toContainText('Bagian sesudah 00:00:03.00 dibuang.');
 
-  // Q: bagian sebelum playhead (detik 1) dibuang; di lajur utama klip tetap mulai di 0.
+  // Q (Potong kiri): bagian sebelum detik 1 dibuang; di lajur utama klip tetap mulai di 0
+  // dan garis merah ikut ke awal bagian yang tersisa.
   for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowLeft');
   await page.keyboard.press('q');
   await expect(clip).toHaveAttribute('aria-label', /Mulai 00:00:00\.00, durasi 2 detik/);
+  await expect(playhead).toHaveAttribute('aria-valuenow', '0');
 
   // Playhead di luar klip: tidak ada yang berubah.
   await page.keyboard.press('End');
   await page.keyboard.press('Shift+ArrowRight');
-  await page.keyboard.press('w');
-  await expect(page.getByRole('status')).toContainText('Playhead tidak berada di dalam klip terpilih.');
+  await page.keyboard.press('e');
+  await expect(page.getByRole('status')).toContainText('Garis merah tidak berada di dalam klip.');
   await expect(clip).toHaveAttribute('aria-label', /Mulai 00:00:00\.00, durasi 2 detik/);
 
   // Satu Ctrl+Z per potongan.
@@ -77,17 +79,14 @@ test('Video 1 selalu rapat ke kiri: saat ditambah, dibelah, dan dihapus', async 
   await gunung.dragTo(lane, { targetPosition: { x: 900, y: 20 } });
   await expect(clips.filter({ hasText: 'contoh-gunung' })).toHaveAttribute('aria-label', /Mulai 00:00:04\.00/);
 
-  // Belah pantai di detik 2 (alat Belah, Enter pada klip), lalu hapus potongan kirinya.
+  // W (Belah) di detik 2, lalu hapus potongan kiri pantai.
   const playhead = page.getByRole('slider', { name: 'Playhead' });
   await playhead.focus();
   await page.keyboard.press('Home');
   for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowRight');
-  await page.keyboard.press('s');
-  await clips.filter({ hasText: 'contoh-pantai' }).first().focus();
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('w');
   await expect(clips).toHaveCount(3);
 
-  await page.keyboard.press('v');
   const leftPart = page.locator('[aria-roledescription="klip"][aria-label*="contoh-pantai"][aria-label*="Mulai 00:00:00.00"]');
   await leftPart.click();
   await page.keyboard.press('Delete');
@@ -95,4 +94,44 @@ test('Video 1 selalu rapat ke kiri: saat ditambah, dibelah, dan dihapus', async 
   const labels = await clips.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label') ?? ''));
   const starts = labels.map((l) => /Mulai ([\d:.]+)/.exec(l)?.[1]).sort();
   expect(starts).toEqual(['00:00:00.00', '00:00:02.00']);
+});
+
+test('tombol Potong kiri, Belah, Potong kanan bekerja di garis merah', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Pilih berkas video, audio, atau gambar').setInputFiles(fixture('contoh-pantai'));
+  const card = page.getByRole('option', { name: /contoh-pantai.*durasi/ });
+  await card.focus();
+  await page.keyboard.press('Enter');
+  const clips = page.locator('[aria-roledescription="klip"]');
+  const playhead = page.getByRole('slider', { name: 'Playhead' });
+  const moveTo = async (frames: number) => {
+    await playhead.focus();
+    await page.keyboard.press('Home');
+    for (let i = 0; i < Math.floor(frames / 30); i++) await page.keyboard.press('Shift+ArrowRight');
+    for (let i = 0; i < frames % 30; i++) await page.keyboard.press('ArrowRight');
+  };
+
+  // Garis merah di ujung klip (detik 4): tidak ada yang bisa dipotong.
+  await expect(page.getByRole('button', { name: 'Potong kiri' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Potong kanan' })).toBeDisabled();
+
+  // Belah di detik 1 dan 3: tiga potongan, durasi total tetap 4 detik.
+  await moveTo(30);
+  await page.getByRole('button', { name: 'Belah' }).click();
+  await moveTo(90);
+  await page.getByRole('button', { name: 'Belah' }).click();
+  await expect(clips).toHaveCount(3);
+  await expect(page.getByLabel('Durasi 00:00:04.00')).toBeVisible();
+
+  // Potong kanan di detik 3,5: setengah detik terakhir dibuang.
+  await moveTo(105);
+  await page.getByRole('button', { name: 'Potong kanan' }).click();
+  await expect(page.getByLabel('Durasi 00:00:03.15')).toBeVisible();
+
+  // Potong kiri di detik 0,5: setengah detik pertama dibuang, sisanya merapat ke 0:00.
+  await moveTo(15);
+  await page.getByRole('button', { name: 'Potong kiri' }).click();
+  await expect(page.getByLabel('Durasi 00:00:03.00')).toBeVisible();
+  await expect(playhead).toHaveAttribute('aria-valuenow', '0');
+  await expect(clips).toHaveCount(3);
 });

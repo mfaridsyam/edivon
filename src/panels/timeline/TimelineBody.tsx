@@ -73,9 +73,7 @@ function PlayheadLine({ zoom }: { zoom: number }) {
 
 function Guides({ zoom, tracks }: { zoom: number; tracks: readonly Track[] }) {
   const snapFrame = useTimelineUi((s) => s.snapFrame);
-  const splitHover = useTimelineUi((s) => s.splitHover);
   const ghost = useTimelineUi((s) => s.dropGhost);
-  const tool = useEditor((s) => s.tool);
   const ghostRow = ghost ? tracks.findIndex((t) => t.id === ghost.trackId) : -1;
   return (
     <>
@@ -83,13 +81,6 @@ function Guides({ zoom, tracks }: { zoom: number; tracks: readonly Track[] }) {
         <div
           className="tl-guide tl-guide-snap"
           style={{ transform: `translateX(${HEAD_W + frameToX(snapFrame, zoom)}px)` }}
-          aria-hidden="true"
-        />
-      )}
-      {tool === 'split' && splitHover && (
-        <div
-          className="tl-guide tl-guide-split"
-          style={{ transform: `translateX(${HEAD_W + frameToX(splitHover.frame, zoom)}px)` }}
           aria-hidden="true"
         />
       )}

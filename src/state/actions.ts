@@ -10,7 +10,9 @@ import {
   projectDuration,
   trackKindFor,
   isSourceTimed,
+  mainTrackId,
   type Clip,
+  type Project,
   type EffectId,
   type Speed,
   type TrackKind,
@@ -22,7 +24,6 @@ import {
   placeClip,
   splitAt,
   setSpeed,
-  splitClip,
   trimAt,
   updateClip,
   updateTrack,
@@ -30,6 +31,7 @@ import {
 import { TEXT_PRESETS, clipFromMedia, effectClip, textClipFromPreset, type TextPresetId } from './clipFactory';
 import { formatTimecode } from '../timeline/time';
 import { editor, type ToolId } from './store';
+import type { CutId } from './tools';
 
 /* Aksi tingkat tinggi yang dipakai bersama oleh tombol, pintasan, dan panel. */
 
@@ -45,52 +47,70 @@ export function deleteSelection(): void {
   s.announce(ids.length === 1 ? 'Klip dihapus.' : `${ids.length} klip dihapus.`);
 }
 
-/** Membelah klip terpilih di playhead; bila tidak ada yang terpilih, semua klip di bawah playhead. */
+/**
+ * Klip yang dikenai aksi di garis merah (playhead): klip terpilih yang dilalui garis itu.
+ * Tanpa pilihan, Belah mengenai semua klip di bawah garis, sedangkan Potong kiri/kanan hanya klip
+ * di lajur utama (bila ada), supaya musik dan teks tidak bergeser dari videonya.
+ */
+function playheadTargets(kind: 'split' | 'trim'): string[] {
+  const s = editor.get();
+  const p = s.project;
+  const under = p.clips.filter((c) => c.start < s.playhead && s.playhead < clipEnd(c));
+  const selected = under.filter((c) => s.selection.includes(c.id));
+  if (selected.length > 0) return selected.map((c) => c.id);
+  if (kind === 'trim') {
+    const main = mainTrackId(p);
+    const onMain = under.filter((c) => c.trackId === main);
+    if (onMain.length > 0) return onMain.map((c) => c.id);
+  }
+  return under.map((c) => c.id);
+}
+
+/** True bila garis merah berada di dalam setidaknya satu klip. */
+export function canCutAtPlayhead(project: Project, playhead: number): boolean {
+  return project.clips.some((c) => c.start < playhead && playhead < clipEnd(c));
+}
+
+/** Belah (W): membelah klip di garis merah. */
 export function splitAtPlayhead(): void {
   const s = editor.get();
-  const ids = s.selection.length > 0 ? s.selection : undefined;
-  let created: string[] = [];
-  s.apply((p) => {
-    const r = splitAt(p, s.playhead, ids);
-    created = r.created;
-    return r.project;
-  });
-  if (created.length === 0) {
-    s.announce('Playhead tidak berada di dalam klip.');
+  const ids = playheadTargets('split');
+  if (ids.length === 0) {
+    s.announce('Garis merah tidak berada di dalam klip.');
     return;
   }
+  s.apply((p) => splitAt(p, s.playhead, ids).project);
   s.announce(`Klip dibelah di ${formatTimecode(s.playhead)}.`);
 }
 
-/** Memotong awal (Q) atau akhir (W) klip terpilih ke playhead; bila tidak ada yang terpilih, semua klip di bawah playhead. */
+/** Potong kiri (Q) membuang bagian sebelum garis merah; potong kanan (E) membuang bagian sesudahnya. */
 export function trimToPlayhead(edge: 'start' | 'end'): void {
   const s = editor.get();
-  const ids = s.selection.length > 0 ? s.selection : undefined;
+  const ids = playheadTargets('trim');
+  if (ids.length === 0) {
+    s.announce('Garis merah tidak berada di dalam klip.');
+    return;
+  }
+  const at = s.playhead;
   let trimmed: string[] = [];
   s.apply((p) => {
-    const r = trimAt(p, s.playhead, edge, ids);
+    const r = trimAt(p, at, edge, ids);
     trimmed = r.trimmed;
     return r.project;
   });
-  if (trimmed.length === 0) {
-    s.announce(ids ? 'Playhead tidak berada di dalam klip terpilih.' : 'Playhead tidak berada di dalam klip.');
-    return;
+  if (edge === 'start') {
+    // Di lajur utama klip merapat ke kiri; garis merah ikut ke awal bagian yang tersisa.
+    const starts = trimmed.map((id) => findClip(editor.get().project, id)?.start ?? at);
+    s.setPlayhead(Math.min(at, ...starts));
+    s.announce(`Bagian sebelum ${formatTimecode(at)} dibuang.`);
+  } else {
+    s.announce(`Bagian sesudah ${formatTimecode(at)} dibuang.`);
   }
-  s.announce(`${edge === 'start' ? 'Awal' : 'Akhir'} klip dipotong ke ${formatTimecode(s.playhead)}.`);
 }
 
-export function splitClipAt(id: string, frame: number): void {
-  const s = editor.get();
-  let rightId: string | null = null;
-  s.apply((p) => {
-    const r = splitClip(p, id, frame);
-    rightId = r.rightId;
-    return r.project;
-  });
-  if (rightId) {
-    s.select([rightId]);
-    s.announce(`Klip dibelah di ${formatTimecode(frame)}.`);
-  }
+export function cutAtPlayhead(id: CutId): void {
+  if (id === 'split') splitAtPlayhead();
+  else trimToPlayhead(id === 'cut-left' ? 'start' : 'end');
 }
 
 export function addTrack(kind: TrackKind): void {

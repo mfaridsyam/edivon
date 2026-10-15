@@ -276,14 +276,12 @@
 }
 
 /* Kursor sesuai alat */
-.tool-split .clip { cursor: crosshair; }
 .tool-text .clip,
 .tool-text .tl-lane,
 .tool-speed .clip,
 .tool-volume .clip,
 .tool-effect .clip,
 .tool-crop .clip { cursor: pointer; }
-.tool-split .clip-handle,
 .tool-text .clip-handle,
 .tool-speed .clip-handle,
 .tool-volume .clip-handle,
@@ -313,9 +311,6 @@
 }
 .tl-guide-snap {
   background: var(--accent);
-}
-.tl-guide-split {
-  background: var(--ink);
 }
 .tl-ghost {
   position: absolute;
