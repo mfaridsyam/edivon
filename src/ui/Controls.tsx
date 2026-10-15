@@ -174,9 +174,10 @@ export function Field({ label, value, children }: FieldProps) {
       </label>
       <div className="field-control">{children({ labelId, controlId })}</div>
       {value !== undefined && (
-        <output className="field-value" htmlFor={controlId}>
+        // Nilai sudah dibacakan lewat aria-valuetext kontrolnya; ini hanya tampilan.
+        <span className="field-value" aria-hidden="true">
           {value}
-        </output>
+        </span>
       )}
     </div>
   );

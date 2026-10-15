@@ -9,6 +9,7 @@ import { Stage } from '../panels/Stage';
 import { Inspector } from '../panels/Inspector';
 import { Timeline } from '../panels/Timeline';
 import { ExportDialog } from '../panels/ExportDialog';
+import { Drawer } from '../ui/Drawer';
 
 /** Wilayah aria-live untuk mengumumkan hasil aksi (belah, hapus, impor, ekspor). */
 function LiveRegion() {
@@ -23,6 +24,8 @@ function LiveRegion() {
 export function App() {
   const narrow = useUi((s) => s.narrow);
   const leftOpen = useUi((s) => s.leftOpen);
+  const drawerOpen = useUi((s) => s.drawerOpen);
+  const closeDrawer = useUi((s) => s.closeDrawer);
 
   useEffect(() => installShortcuts(), []);
 
@@ -45,13 +48,22 @@ export function App() {
         <section className="stage-area" aria-label="Pratinjau">
           <Stage />
         </section>
-        <aside id="panel-right" className="panel panel-right" aria-label="Properti">
-          <Inspector />
-        </aside>
+        {!narrow && (
+          <aside id="panel-right" className="panel panel-right" aria-label="Properti">
+            <Inspector />
+          </aside>
+        )}
       </main>
       <section className="timeline-area" aria-label="Timeline">
         <Timeline />
       </section>
+      {narrow && (
+        <Drawer open={drawerOpen} onClose={closeDrawer} title="Properti">
+          <div id="panel-right" className="panel drawer-panel">
+            <Inspector />
+          </div>
+        </Drawer>
+      )}
       <ExportDialog />
       <LiveRegion />
     </div>

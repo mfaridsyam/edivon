@@ -57,7 +57,7 @@ export function Tabs<T extends string>({ idPrefix, label, items, value, onChange
             role="tab"
             className="tab"
             aria-selected={selected}
-            aria-controls={tabPanelId(idPrefix, t.id)}
+            aria-controls={selected ? tabPanelId(idPrefix, t.id) : undefined}
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(t.id)}
           >

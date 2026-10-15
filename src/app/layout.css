@@ -95,3 +95,102 @@
 .topbar-name-input {
   width: 240px;
 }
+
+/* ---------- Layar sempit (< 960px) ---------- */
+.app-narrow .workspace {
+  position: relative;
+  grid-template-columns: var(--panel-w) minmax(0, 1fr);
+}
+.app-narrow.app-left-closed .workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.panel[hidden] {
+  display: none;
+}
+
+/* Laci properti dari kanan */
+.drawer {
+  margin: 0 0 0 auto;
+  width: min(calc(var(--panel-w) + 32px), 100vw);
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-menu);
+}
+.drawer::backdrop {
+  background: color-mix(in srgb, var(--ink) 24%, transparent);
+}
+.drawer[open] {
+  display: flex;
+  flex-direction: column;
+}
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  height: var(--toolbar-h);
+  padding: 0 var(--space-2) 0 var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.drawer-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.drawer-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Ponsel: panel media menimpa pratinjau, bilah atas dipadatkan */
+@media (max-width: 639.98px) {
+  .app-narrow .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app-narrow .panel-left {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 20;
+    width: min(var(--panel-w), 100%);
+    border-right: 1px solid var(--border);
+    box-shadow: var(--shadow-menu);
+  }
+  .topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-2);
+    padding: 0 var(--space-2);
+  }
+  .topbar-name {
+    display: none;
+  }
+  .badge {
+    padding: 0 6px;
+  }
+  .badge-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+@media (max-width: 479.98px) {
+  .topbar-btn-text {
+    display: none;
+  }
+  .topbar-end,
+  .topbar-start {
+    gap: 2px;
+  }
+  .topbar-end .btn-ghost {
+    padding: 0 8px;
+  }
+}

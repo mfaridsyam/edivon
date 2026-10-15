@@ -3,7 +3,7 @@ import { canRedo, canUndo } from '../state/history';
 import { useEditor } from '../state/store';
 import { Button, IconButton } from '../ui/Button';
 import { Input } from '../ui/Controls';
-import { IconDownload, IconFilm, IconRedo, IconShield, IconUndo } from '../ui/icons';
+import { IconDownload, IconFilm, IconPanel, IconRedo, IconShield, IconSliders, IconUndo } from '../ui/icons';
 import { useUi } from './uiState';
 
 const MOD = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl';
@@ -76,13 +76,20 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div className="topbar-start">
-        <span className="topbar-logo t-title">
+        <h1 className="topbar-logo t-title">
           <IconFilm size={18} className="topbar-logo-icon" />
           Klip
-        </span>
+        </h1>
         {narrow && (
-          <Button variant="ghost" aria-expanded={leftOpen} aria-controls="panel-left" onClick={toggleLeft}>
-            Media
+          <Button
+            variant="ghost"
+            icon={<IconPanel />}
+            aria-label="Panel media"
+            aria-expanded={leftOpen}
+            aria-controls="panel-left"
+            onClick={toggleLeft}
+          >
+            <span className="topbar-btn-text">Media</span>
           </Button>
         )}
         <ProjectName />
@@ -107,8 +114,8 @@ export function TopBar() {
           <IconRedo />
         </IconButton>
         {narrow && (
-          <Button variant="ghost" aria-haspopup="dialog" aria-controls="panel-right" onClick={openDrawer}>
-            Properti
+          <Button variant="ghost" icon={<IconSliders />} aria-label="Properti" aria-haspopup="dialog" onClick={openDrawer}>
+            <span className="topbar-btn-text">Properti</span>
           </Button>
         )}
         <Button variant="primary" icon={<IconDownload />} onClick={openExport}>
