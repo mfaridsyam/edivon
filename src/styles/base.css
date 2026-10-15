@@ -1,0 +1,93 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, p {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+img,
+svg,
+canvas,
+video {
+  display: block;
+}
+
+/* Gaya teks */
+.t-title { font-family: var(--font-sans); font-size: 15px; line-height: 20px; font-weight: 600; }
+.t-body { font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 400; }
+.t-label { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 500; }
+.t-caption { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 400; color: var(--ink-muted); }
+.t-timecode { font-family: var(--font-mono); font-size: 13px; line-height: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.t-timecode-lg { font-family: var(--font-mono); font-size: 20px; line-height: 24px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.t-tick { font-family: var(--font-mono); font-size: 11px; line-height: 14px; font-weight: 400; font-variant-numeric: tabular-nums; }
+
+/* Fokus keyboard: outline 2px solid focus, offset 2px, di semua kontrol */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Hanya untuk pembaca layar */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Gerak: hanya transisi warna 120ms */
+:root {
+  --transition-color: color 120ms ease, background-color 120ms ease, border-color 120ms ease, outline-color 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

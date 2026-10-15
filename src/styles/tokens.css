@@ -1,0 +1,42 @@
+:root {
+  /* permukaan */
+  --canvas: #f1f1ef;          /* latar aplikasi */
+  --surface: #f8f8f6;         /* panel */
+  --surface-raised: #ffffff;  /* kartu, input, menu, dialog */
+  --surface-sunken: #e9e9e6;  /* lajur timeline, hover */
+  --stage: #deded9;           /* area pratinjau */
+  /* garis */
+  --border: #d9d9d4;          /* pemisah dekoratif */
+  --border-strong: #7f7f7a;   /* batas kontrol, klip, ikon bermakna (3:1) */
+  /* teks */
+  --ink: #2a2a27;
+  --ink-muted: #5c5c57;
+  /* aksen (satu-satunya warna aksi) */
+  --accent: #2f6f73;
+  --accent-hover: #245a5e;
+  --accent-soft: #dcebea;     /* latar item terpilih */
+  --accent-ink: var(--accent-hover);
+  --on-accent: #ffffff;
+  --focus: var(--accent-hover);
+  /* status */
+  --playhead: #c2452d;
+  --danger: #b3261e;
+  /* jenis klip (selalu disertai ikon + nama) */
+  --clip-video: #c8dde0;
+  --clip-audio: #d6e4c6;
+  --clip-text: #eadcc0;
+  --clip-effect: #e8d1cf;
+  /* jarak */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px;
+  --space-4: 16px; --space-5: 24px; --space-6: 32px;
+  /* radius */
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px;
+  /* bayangan: hanya menu dan dialog */
+  --shadow-menu: 0 6px 20px rgba(42,42,39,0.14);
+  /* tata letak */
+  --toolbar-h: 48px; --panel-w: 288px; --timeline-h: 292px;
+  --track-h: 44px; --track-head-w: 128px;
+  /* font */
+  --font-sans: "Figtree", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}

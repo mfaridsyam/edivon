@@ -1,0 +1,82 @@
+/* Grid layar penuh: bilah atas / area kerja / timeline */
+.app {
+  display: grid;
+  grid-template-rows: var(--toolbar-h) minmax(0, 1fr) var(--timeline-h);
+  height: 100vh;
+  height: 100dvh;
+  min-height: calc(var(--toolbar-h) + var(--timeline-h) + 240px);
+  background: var(--canvas);
+}
+
+/* Bilah atas */
+.topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-start,
+.topbar-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.topbar-end {
+  justify-content: flex-end;
+}
+.topbar-center {
+  display: flex;
+  justify-content: center;
+}
+.topbar-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-right: var(--space-2);
+  color: var(--ink);
+}
+
+/* Area kerja: media / pratinjau / properti */
+.workspace {
+  display: grid;
+  grid-template-columns: var(--panel-w) minmax(0, 1fr) var(--panel-w);
+  min-height: 0;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--surface);
+}
+.panel-left {
+  border-right: 1px solid var(--border);
+}
+.panel-right {
+  border-left: 1px solid var(--border);
+}
+.stage-area {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--stage);
+}
+
+/* Timeline */
+.timeline-area {
+  display: flex;
+  flex-direction: column;
+  min-height: var(--timeline-h);
+  min-width: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.placeholder {
+  padding: var(--space-4);
+}

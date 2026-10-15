@@ -1,0 +1,38 @@
+# dependensi
+node_modules/
+
+# hasil build
+dist/
+*.tsbuildinfo
+
+# pengujian
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+e2e/.fixtures/
+
+# lingkungan
+.env
+.env.*
+.vercel
+
+# editor dan sistem
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# berkas media tidak masuk repo
+*.mp4
+*.mov
+*.webm
+*.mkv
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.ogg
+*.flac
