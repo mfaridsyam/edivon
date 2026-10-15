@@ -8,8 +8,9 @@ Editor video yang berjalan sepenuhnya di browser. Tidak ada server dan tidak ada
 - Timeline dengan lajur Teks, Video 2, Video 1, dan Audio 1. Kamu bisa menambah lajur video, audio, teks, atau efek. Klip bisa digeser antarlajur, menempel ke klip lain dan playhead, di-trim dari tepi, dibelah, dan dihapus. Ada juga zoom timeline.
 - Alat: Pilih, Belah, Potong, Teks, Crop, Kecepatan, Volume, Efek, dan Hapus.
 - Properti klip: skala, posisi, rotasi, opasitas, kecepatan (0,5× sampai 4×), kecerahan, kontras, saturasi, volume, dan tombol **Setel ulang**.
+- Klip video, gambar, dan teks bisa dipilih langsung di pratinjau. Seret untuk memindahkannya (menempel ke garis tengah), atau tarik sudutnya untuk mengubah skala.
 - Pratinjau dengan rasio 16:9, 9:16, atau 1:1, plus timecode dan layar penuh.
-- Ekspor ke MP4 (H.264 + AAC) atau WebM (VP9 + Opus) dalam 720p, 1080p, atau 4K bila browser mendukung. Progres dan estimasi sisa waktu ditampilkan, dan ekspor bisa dibatalkan.
+- Ekspor ke MP4 (H.264 + AAC) atau WebM (VP9 + Opus) dalam 720p, 1080p, atau 4K bila browser mendukung. Sebelum mulai, dialog menampilkan perkiraan ukuran berkas. Selama ekspor, progres dan estimasi sisa waktu ditampilkan, dan ekspor bisa dibatalkan.
 - Undo/redo dan pintasan keyboard untuk semua alat.
 
 ## Menjalankan di komputer sendiri
@@ -49,6 +50,7 @@ Setiap push ke branch utama akan memicu deploy baru.
 
 - **Ekspor butuh WebCodecs** (`VideoEncoder` dan `AudioEncoder`). Gunakan Chrome atau Edge versi terbaru di desktop. Kalau browser tidak mendukung, Klip menampilkan pesan dan pratinjau tetap bisa dipakai.
 - Pilihan format dan resolusi di dialog ekspor mengikuti kemampuan encoder browser. Contohnya, 4K atau MP4 bisa tidak tersedia, dan WebM dipakai sebagai cadangan.
+- Perkiraan ukuran di dialog ekspor dihitung dari bitrate encoder. Untuk video yang banyak bergerak, selisihnya dengan hasil biasanya di bawah 15%. Rekaman layar atau video yang banyak diam hasilnya bisa jauh lebih kecil.
 - Ada berkas yang bisa diputar browser tetapi codec-nya tidak bisa didekode WebCodecs. Kartunya diberi keterangan "Belum bisa diekspor di browser ini".
 - Video H.265 (HEVC), yang umum dipakai kamera CCTV/DVR, butuh dekoder HEVC hardware. Di Windows, pakai Chrome atau Brave. Edge baru bisa setelah ekstensi HEVC Video Extensions dari Microsoft Store dipasang.
 - Banyak rekaman CCTV menyimpan parameter codec HEVC yang rusak. Klip tetap membacanya lewat dekoder toleran: parameter diperbaiki atau stream diubah ke Annex B. Karena `<video>` tidak bisa di-seek akurat untuk berkas seperti ini, gambar pratinjaunya juga didekode lewat WebCodecs supaya sama persis dengan hasil ekspor. Berkas sangat besar dengan indeks di akhir berkas butuh beberapa detik untuk tampil pertama kali.
@@ -84,7 +86,7 @@ Setiap push ke branch utama akan memicu deploy baru.
 | ← / → | Geser playhead satu frame (Shift: satu detik) |
 | Esc | Tutup popover, kembali ke alat Pilih, atau hapus seleksi |
 
-Untuk klip yang sedang difokus: Enter memilih atau menjalankan alat aktif, panah menggeser klip (dengan alat Potong, panah mengubah tepi kanan dan Alt + panah mengubah tepi kiri), dan Delete menghapus klip itu.
+Untuk klip yang sedang difokus: Enter memilih atau menjalankan alat aktif, panah menggeser klip (dengan alat Potong, panah mengubah tepi kanan dan Alt + panah mengubah tepi kiri), dan Delete menghapus klip itu. Di pratinjau, panah menggeser klip terpilih 1 piksel (Shift: 10 piksel).
 
 ## Struktur
 

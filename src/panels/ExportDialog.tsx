@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useUi } from '../app/uiState';
+import { estimateBytes, projectHasAudio } from '../export/estimate';
 import { downloadBlob, startExport, type ExportJob } from '../export/exporter';
 import { CODECS, type ExportFormat, type ExportQuality, type ExportResolution } from '../export/protocol';
 import { detectSupport, hasWebCodecs, outputSize, type FormatSupport } from '../export/support';
@@ -36,8 +37,11 @@ function safeName(name: string): string {
 }
 
 function formatSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} MB`;
+  const mb = bytes / (1024 * 1024);
+  if (mb < 1) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1).replace('.', ',')} GB`;
+  if (mb >= 100) return `${Math.round(mb)} MB`;
+  return `${mb.toFixed(1).replace('.', ',')} MB`;
 }
 
 function formatRemaining(seconds: number): string {
@@ -53,6 +57,7 @@ export function ExportDialog() {
   const projectName = useEditor((s) => s.project.name);
   const aspect = useEditor((s) => s.project.aspect);
   const duration = useEditor((s) => projectDuration(s.project));
+  const withAudio = useEditor((s) => projectHasAudio(s.project));
 
   const [phase, setPhase] = useState<Phase>({ kind: 'checking' });
   const [support, setSupport] = useState<FormatSupport[]>([]);
@@ -120,6 +125,7 @@ export function ExportDialog() {
 
   const current = support.find((s) => s.format === format);
   const size = outputSize(aspect, resolution);
+  const estimate = estimateBytes({ format, ...size, quality, seconds: duration / FPS, withAudio });
 
   const begin = () => {
     const s = editor.get();
@@ -247,6 +253,12 @@ export function ExportDialog() {
             {!current?.resolutions.includes(2160) && <> · 4K tidak didukung browser ini.</>}
             {!support.some((s) => s.format === 'mp4') && <> · MP4 tidak didukung, pakai WebM.</>}
           </p>
+          <div className="export-estimate">
+            <p className="t-body">
+              Perkiraan ukuran <span className="t-timecode">±{formatSize(estimate)}</span>
+            </p>
+            <p className="t-caption">Rekaman layar dan video yang banyak diam biasanya jauh lebih kecil.</p>
+          </div>
         </div>
       );
       footer = (

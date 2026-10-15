@@ -9,6 +9,7 @@ import { Segmented } from '../ui/Controls';
 import { Tooltip } from '../ui/Tooltip';
 import { IconFullscreen, IconPause, IconPlay, IconSkipEnd, IconSkipStart } from '../ui/icons';
 import { CropOverlay } from './CropOverlay';
+import { TransformOverlay } from './TransformOverlay';
 import './stage.css';
 
 const MAX_FRAME_W = 560;
@@ -162,6 +163,7 @@ export function Stage() {
             aria-label={`Pratinjau video, rasio ${aspect}`}
             style={fullscreen ? { width: box.w, height: box.h } : undefined}
           />
+          {!fullscreen && <TransformOverlay width={box.w} height={box.h} />}
           {!fullscreen && <CropOverlay width={box.w} height={box.h} />}
         </div>
       </div>
