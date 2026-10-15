@@ -5,6 +5,7 @@ Editor video yang berjalan sepenuhnya di browser. Tidak ada server dan tidak ada
 ## Fitur
 
 - Impor video, audio, dan gambar lewat seret-lepas atau tombol **Pilih berkas**. Durasi, dimensi, dan thumbnail dibaca di browser.
+- Tempel link YouTube, pilih **MP4** atau **MP3**, lalu unduh. Hasilnya masuk ke panel Media/Audio dan bisa diseret ke timeline seperti berkas biasa. Fitur ini butuh helper lokal (lihat [Video dari YouTube](#video-dari-youtube)).
 - Timeline dengan lajur Teks, Video 2, Video 1, dan Audio 1. Kamu bisa menambah lajur video, audio, teks, atau efek. Klip bisa digeser antarlajur, menempel ke klip lain dan playhead, di-trim dari tepi, dibelah, dan dihapus. Ada juga zoom timeline.
 - Alat: Pilih, Belah, Potong, Teks, Crop, Kecepatan, Volume, Efek, dan Hapus.
 - Properti klip: skala, posisi, rotasi, opasitas, kecepatan (0,5× sampai 4×), kecerahan, kontras, saturasi, volume, dan tombol **Setel ulang**.
@@ -21,6 +22,7 @@ npm install
 npm run dev        # server pengembangan di http://localhost:5173
 npm run build      # build statis ke dist/
 npm run preview    # menyajikan dist/ secara lokal
+npm run yt         # helper YouTube lokal (opsional, lihat di bawah)
 ```
 
 Halaman internal komponen tersedia di `/ui/`.
@@ -28,13 +30,46 @@ Halaman internal komponen tersedia di `/ui/`.
 ### Pengujian
 
 ```bash
-npm run test       # Vitest: logika timeline (model, snap, belah, trim, undo/redo)
+npm run test       # Vitest: logika timeline (model, snap, belah, trim, undo/redo), link YouTube, keluaran yt-dlp
 
 npx playwright install chromium   # sekali saja
-npm run test:e2e   # Playwright: impor dua berkas, belah, urutkan, ekspor
+npm run test:e2e   # Playwright: impor dua berkas, belah, urutkan, ekspor; unduh dari YouTube (helper ditiru)
 ```
 
 Video contoh untuk tes end-to-end dibuat otomatis di browser pada saat tes dan disimpan di `e2e/.fixtures/` (diabaikan git). Tidak ada berkas media di repo.
+
+## Video dari YouTube
+
+Browser tidak bisa mengambil video dari YouTube sendiri. Karena itu Klip memakai helper kecil, [`tools/yt-helper.mjs`](tools/yt-helper.mjs), yang berjalan di komputermu dan memanggil [yt-dlp](https://github.com/yt-dlp/yt-dlp). Helper hanya mendengarkan di `127.0.0.1:7878`, dan hanya melayani Klip.
+
+### Persiapan (sekali saja)
+
+```bash
+winget install yt-dlp.yt-dlp      # ikut memasang FFmpeg dan Deno
+```
+
+Setelah itu buka terminal baru supaya `PATH` terbarui. Di macOS/Linux, pasang `yt-dlp` dan `ffmpeg` lewat package manager masing-masing. yt-dlp minimal versi 2025.11.12. Node yang menjalankan helper dipakai sebagai JavaScript runtime untuk YouTube.
+
+### Pemakaian
+
+1. Di folder proyek, jalankan `npm run yt` dan biarkan terminalnya terbuka.
+2. Di Klip, tempel link YouTube di bagian **Dari YouTube** pada tab Media atau Audio. Judul, channel, dan durasi akan tampil.
+3. Pilih **MP4** (video + suara) atau **MP3** (suara saja), lalu klik **Unduh**.
+4. Setelah selesai, hasilnya muncul sebagai kartu media. Seret ke timeline atau klik dua kali.
+
+Saat Klip versi online (mis. `edivon.vercel.app`) menghubungi helper untuk pertama kali, Chrome/Brave akan meminta izin mengakses perangkat di jaringan lokal. Pilih **Izinkan**.
+
+### Catatan
+
+- MP4 memakai H.264 + AAC dengan resolusi sampai 1080p, supaya mudah didekode browser dan hemat memori. MP3 memakai kualitas terbaik.
+- Hanya satu video yang diunduh. Parameter `list=` dan `si=` diabaikan. Link playlist, channel, dan siaran langsung ditolak.
+- Berkas hasil disimpan sementara di folder temp sistem, lalu dihapus begitu sudah diambil Klip atau dibatalkan.
+- Kalau YouTube berubah dan unduhan mulai gagal, perbarui yt-dlp dengan `winget upgrade yt-dlp.yt-dlp` (atau `yt-dlp -U`).
+- Variabel lingkungan opsional:
+  - `YTDLP` untuk lokasi yt-dlp.
+  - `FFMPEG` untuk lokasi ffmpeg atau foldernya.
+  - `KLIP_ORIGINS` untuk domain Klip lain yang boleh memakai helper, dipisah koma. Bawaannya `https://edivon.vercel.app` dan localhost.
+- Ketentuan YouTube melarang mengunduh video tanpa izin, dan sebagian besar video dilindungi hak cipta. Pakai fitur ini untuk video milikmu sendiri, video berlisensi bebas, atau keperluan pribadi. Video hasil suntingan dari konten orang lain kemungkinan besar kena klaim kalau diunggah ulang.
 
 ## Deploy ke Vercel
 
@@ -61,7 +96,8 @@ Setiap push ke branch utama akan memicu deploy baru.
 
 - Berkas tidak pernah dikirim ke server. Video, audio, dan gambar hanya ada di memori tab sebagai `File`/`Blob` dan object URL (`blob:`).
 - Tidak ada backend, API, analytics, cookie, atau skrip pihak ketiga. Font, ikon, dan pustaka di-self-host atau di-bundle.
-- Build produksi memasang Content Security Policy yang hanya mengizinkan skrip, font, dan koneksi dari origin sendiri. Akibatnya, kode Klip juga tidak bisa mengirim data ke luar.
+- Fitur YouTube memakai helper yang berjalan di komputermu sendiri (`127.0.0.1:7878`), bukan server. Klip baru menghubunginya setelah kamu menempel link. Yang dikirim hanya ID video dan format yang dipilih. Thumbnail pratinjau diambil langsung dari `i.ytimg.com`.
+- Build produksi memasang Content Security Policy yang hanya mengizinkan skrip, font, dan koneksi dari origin sendiri, ditambah helper lokal dan thumbnail YouTube tadi. Akibatnya, kode Klip tidak bisa mengirim data ke tempat lain.
 - Tidak ada yang disimpan di perangkat (IndexedDB atau localStorage tidak dipakai). Satu-satunya berkas yang ditulis adalah hasil ekspor yang kamu unduh sendiri.
 
 ## Pintasan keyboard
@@ -91,7 +127,7 @@ Untuk klip yang sedang difokus: Enter memilih atau menjalankan alat aktif, panah
 ```
 src/
   app/        App, bilah atas, pintasan, keadaan tata letak
-  state/      store Zustand, riwayat undo/redo, aksi, impor media
+  state/      store Zustand, riwayat undo/redo, aksi, impor media, unduhan YouTube
   timeline/   model klip, snap, trim, belah (logika murni + tes)
   engine/     compositor kanvas, mesin pratinjau dan audio, thumbnail, probe
   export/     worker encoder, mixer audio, protokol, deteksi dukungan
@@ -100,6 +136,7 @@ src/
   styles/     tokens.css, fonts.css, base.css
 public/fonts/ Figtree dan IBM Plex Mono (SIL Open Font License)
 e2e/          tes Playwright dan pembuat video contoh
+tools/        helper YouTube lokal (yt-dlp), dijalankan dengan npm run yt
 ```
 
 ## Pustaka
@@ -107,3 +144,4 @@ e2e/          tes Playwright dan pembuat video contoh
 - [React 18](https://react.dev), [Zustand](https://zustand.docs.pmnd.rs), [Vite](https://vite.dev)
 - [Mediabunny](https://mediabunny.dev) untuk membaca dan menulis kontainer MP4/WebM di atas WebCodecs
 - [Vitest](https://vitest.dev) dan [Playwright](https://playwright.dev) untuk pengujian
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) dan [FFmpeg](https://ffmpeg.org), dipanggil helper YouTube di komputermu (tidak di-bundle)
