@@ -5,6 +5,7 @@ import { Dialog } from './Dialog';
 import { MenuButton } from './Menu';
 import { TabPanel, Tabs } from './Tabs';
 import * as I from './icons';
+import '../panels/timeline/timeline.css';
 import './gallery.css';
 
 const TOKENS = [
@@ -257,6 +258,27 @@ export function Gallery() {
           <Progress label="Progres ekspor" value={0.62} />
           <p className="t-caption">Jangan tutup tab ini sampai selesai.</p>
         </Dialog>
+      </Section>
+
+      <Section title="Klip timeline">
+        <div className="gallery-lane">
+          {(
+            [
+              ['clip-video', <I.IconFilm size={14} />, 'pantai.mp4', false],
+              ['clip-audio', <I.IconMusic size={14} />, 'musik-latar.mp3', false],
+              ['clip-text', <I.IconText size={14} />, 'Halo dunia', false],
+              ['clip-effect', <I.IconEffect size={14} />, 'Hitam putih', false],
+              ['clip-video', <I.IconImage size={14} />, 'Terpilih', true],
+            ] as const
+          ).map(([cls, icon, name, sel], i) => (
+            <div key={i} className={`clip ${cls}`} aria-pressed={sel} style={{ left: 8 + i * 150, width: 138, top: 4 }}>
+              <span className="clip-handle clip-handle-start" />
+              {icon}
+              <span className="clip-name">{name}</span>
+              <span className="clip-handle clip-handle-end" />
+            </div>
+          ))}
+        </div>
       </Section>
 
       <Section title="Ikon">

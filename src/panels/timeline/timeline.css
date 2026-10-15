@@ -1,0 +1,328 @@
+.timeline {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- Bilah alat ---------- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+  height: 54px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.toolbar-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 0;
+}
+.toolbar-sep {
+  flex: none;
+  width: 1px;
+  height: 28px;
+  margin: 0 var(--space-1);
+  background: var(--border);
+}
+.toolbar-zoom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+  width: 200px;
+  margin-left: auto;
+}
+
+/* ---------- Badan timeline ---------- */
+.tl-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface);
+}
+.tl-content {
+  position: relative;
+  min-height: 100%;
+}
+
+/* Baris penggaris */
+.tl-ruler-row {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  height: 28px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.tl-corner {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  width: var(--track-head-w);
+  padding: 0 2px 0 var(--space-2);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+.tl-ruler {
+  position: relative;
+  flex: none;
+  height: 100%;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.tl-ruler:focus-visible {
+  outline-offset: -2px;
+}
+.tl-tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 6px;
+  background: var(--border-strong);
+}
+.tl-tick-major {
+  height: 12px;
+}
+.tl-tick-label {
+  position: absolute;
+  bottom: 12px;
+  left: 4px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+.tl-playhead-knob {
+  position: absolute;
+  top: 0;
+  left: -6px;
+  width: 12px;
+  height: 100%;
+  pointer-events: none;
+}
+.tl-playhead-knob::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 14px;
+  background: var(--playhead);
+  clip-path: polygon(0 0, 100% 0, 100% 62%, 50% 100%, 0 62%);
+}
+.tl-playhead-knob::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 0;
+  left: 5px;
+  width: 2px;
+  background: var(--playhead);
+}
+
+/* Lajur */
+.tl-rows {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0;
+}
+.tl-row {
+  display: flex;
+  height: var(--track-h);
+}
+.tl-head {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  width: var(--track-head-w);
+  padding: 0 4px 0 var(--space-2);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+.tl-head-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+.tl-lane {
+  position: relative;
+  flex: none;
+  height: var(--track-h);
+  background: var(--surface-sunken);
+}
+.tl-lane[data-drop="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.tl-empty {
+  position: absolute;
+  top: 50%;
+  left: var(--space-3);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Lapisan klip: satu lapisan untuk semua lajur agar klip tetap sama saat pindah lajur */
+.tl-clips {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ---------- Klip ---------- */
+.clip {
+  position: absolute;
+  height: calc(var(--track-h) - 8px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 2px;
+  padding: 0 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  pointer-events: auto;
+}
+.clip > svg {
+  flex: none;
+}
+.clip-video { background: var(--clip-video); }
+.clip-audio { background: var(--clip-audio); }
+.clip-text { background: var(--clip-text); }
+.clip-effect { background: var(--clip-effect); }
+.clip[aria-pressed="true"] {
+  z-index: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.clip:focus-visible {
+  z-index: 2;
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.clip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.clip-speed {
+  flex: none;
+  margin-left: auto;
+  color: var(--ink-muted);
+}
+.clip-narrow {
+  padding: 0;
+  justify-content: center;
+}
+.clip-narrow > svg,
+.clip-narrow .clip-name,
+.clip-narrow .clip-speed {
+  display: none;
+}
+.clip-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+.clip-handle-start { left: 0; }
+.clip-handle-end { right: 0; }
+.clip-narrow .clip-handle {
+  display: none;
+}
+.clip[aria-pressed="true"] .clip-handle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 2px;
+  height: 14px;
+  margin-top: -7px;
+  border-radius: 1px;
+  background: var(--border-strong);
+}
+
+/* Kursor sesuai alat */
+.tool-split .clip { cursor: crosshair; }
+.tool-trim .clip { cursor: ew-resize; }
+.tool-text .clip,
+.tool-text .tl-lane,
+.tool-speed .clip,
+.tool-volume .clip,
+.tool-effect .clip,
+.tool-crop .clip { cursor: pointer; }
+.tool-split .clip-handle,
+.tool-text .clip-handle,
+.tool-speed .clip-handle,
+.tool-volume .clip-handle,
+.tool-effect .clip-handle,
+.tool-crop .clip-handle {
+  cursor: inherit;
+}
+
+/* Playhead dan garis bantu */
+.tl-playhead-line,
+.tl-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1px;
+  width: 2px;
+  pointer-events: none;
+}
+.tl-playhead-line {
+  z-index: 1;
+  background: var(--playhead);
+}
+.tl-guide {
+  z-index: 1;
+  width: 1px;
+  left: 0;
+}
+.tl-guide-snap {
+  background: var(--accent);
+}
+.tl-guide-split {
+  background: var(--ink);
+}
+.tl-ghost {
+  position: absolute;
+  z-index: 1;
+  height: calc(var(--track-h) - 8px);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}

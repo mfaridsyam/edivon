@@ -1,3 +1,14 @@
+import './timeline/timeline.css';
+import { useEditor } from '../state/store';
+import { Toolbar } from './Toolbar';
+import { TimelineBody } from './timeline/TimelineBody';
+
 export function Timeline() {
-  return <div className="placeholder t-caption">Timeline</div>;
+  const tool = useEditor((s) => s.tool);
+  return (
+    <div className={`timeline tool-${tool}`}>
+      <Toolbar />
+      <TimelineBody />
+    </div>
+  );
 }
