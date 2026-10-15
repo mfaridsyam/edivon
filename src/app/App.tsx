@@ -8,6 +8,7 @@ import { MediaBin } from '../panels/MediaBin';
 import { Stage } from '../panels/Stage';
 import { Inspector } from '../panels/Inspector';
 import { Timeline } from '../panels/Timeline';
+import { ExportDialog } from '../panels/ExportDialog';
 
 /** Wilayah aria-live untuk mengumumkan hasil aksi (belah, hapus, impor, ekspor). */
 function LiveRegion() {
@@ -51,6 +52,7 @@ export function App() {
       <section className="timeline-area" aria-label="Timeline">
         <Timeline />
       </section>
+      <ExportDialog />
       <LiveRegion />
     </div>
   );

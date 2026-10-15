@@ -1,0 +1,45 @@
+.export-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.export-fields .field {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+.export-fields .segmented {
+  width: 100%;
+}
+.export-name {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+.export-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.export-ext {
+  color: var(--ink-muted);
+}
+.export-summary {
+  margin-top: var(--space-1);
+}
+.export-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.export-progress-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.export-error {
+  color: var(--danger);
+}
+a.btn {
+  text-decoration: none;
+}
