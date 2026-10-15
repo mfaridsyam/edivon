@@ -326,3 +326,8 @@
   border-radius: var(--radius-sm);
   pointer-events: none;
 }
+
+/* Saat media diseret dari panel, klip tidak menghalangi lajur di bawahnya */
+.klip-dragging .clip {
+  pointer-events: none;
+}

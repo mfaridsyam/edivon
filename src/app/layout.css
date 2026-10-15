@@ -80,3 +80,18 @@
 .placeholder {
   padding: var(--space-4);
 }
+
+.topbar-logo-icon {
+  color: var(--accent);
+}
+.topbar-name {
+  max-width: 260px;
+  min-width: 0;
+}
+.topbar-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar-name-input {
+  width: 240px;
+}

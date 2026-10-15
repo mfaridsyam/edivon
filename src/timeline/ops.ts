@@ -63,6 +63,24 @@ function nextStart(project: Project, clip: Clip): number {
   return start;
 }
 
+/** Frame awal sebenarnya bila sebuah klip ditaruh di `start` pada lajur berisi `onTrack` (terurut). */
+function resolveStart(onTrack: readonly Clip[], start: number): number {
+  let s = Math.max(0, Math.round(start));
+  const containing = onTrack.find((c) => c.start < s && s < clipEnd(c));
+  if (containing) {
+    s = s - containing.start < containing.duration / 2 ? containing.start : clipEnd(containing);
+  }
+  return s;
+}
+
+/** Posisi yang akan dipakai `placeClip`, untuk bayangan saat media diseret ke timeline. */
+export function previewPlacement(project: Project, trackId: string, start: number, excludeId?: string): number {
+  return resolveStart(
+    project.clips.filter((c) => c.trackId === trackId && c.id !== excludeId).sort((a, b) => a.start - b.start),
+    start,
+  );
+}
+
 /**
  * Menaruh klip di lajur pada frame `start` tanpa tumpang tindih.
  * - Bila `start` jatuh di dalam klip lain, klip ditaruh sebelum klip itu (paruh kiri) atau sesudahnya (paruh kanan).
@@ -73,11 +91,7 @@ export function placeClip(project: Project, clip: Clip, trackId: string, start: 
   const others = project.clips.filter((c) => c.id !== clip.id);
   const onTrack = others.filter((c) => c.trackId === trackId).sort((a, b) => a.start - b.start);
 
-  let s = Math.max(0, Math.round(start));
-  const containing = onTrack.find((c) => c.start < s && s < clipEnd(c));
-  if (containing) {
-    s = s - containing.start < containing.duration / 2 ? containing.start : clipEnd(containing);
-  }
+  const s = resolveStart(onTrack, start);
   const end = s + clip.duration;
   const next = onTrack.find((c) => c.start >= s);
   const shift = next ? Math.max(0, end - next.start) : 0;

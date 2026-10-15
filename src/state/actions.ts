@@ -1,5 +1,24 @@
-import { clipLabel, findClip, findTrack, projectDuration, type TrackKind } from '../timeline/model';
-import { addTrack as addTrackOp, deleteClips, splitAt, splitClip, updateTrack } from '../timeline/ops';
+import {
+  EFFECT_LABEL,
+  clipEnd,
+  clipLabel,
+  findClip,
+  findTrack,
+  projectDuration,
+  trackKindFor,
+  type EffectId,
+  type TrackKind,
+} from '../timeline/model';
+import {
+  addTrack as addTrackOp,
+  deleteClips,
+  ensureTrackFor,
+  placeClip,
+  splitAt,
+  splitClip,
+  updateTrack,
+} from '../timeline/ops';
+import { TEXT_PRESETS, clipFromMedia, effectClip, textClipFromPreset, type TextPresetId } from './clipFactory';
 import { formatTimecode } from '../timeline/time';
 import { editor } from './store';
 
@@ -103,4 +122,96 @@ export function jumpToEnd(): void {
 export function describeClip(id: string): string {
   const clip = findClip(editor.get().project, id);
   return clip ? clipLabel(clip) : '';
+}
+
+/* ---------- Menambah klip ---------- */
+
+export interface Placement {
+  trackId: string;
+  start: number;
+}
+
+/** Menambah media ke timeline. Tanpa `at`: di playhead pada lajur yang cocok, lalu playhead pindah ke akhir klip. */
+export function addMediaToTimeline(mediaId: string, at?: Placement): void {
+  const s = editor.get();
+  const media = s.media.find((m) => m.id === mediaId);
+  if (!media || media.status !== 'ready') {
+    s.announce(media?.status === 'error' ? `${media.name} tidak bisa dipakai.` : 'Media masih dibaca.');
+    return;
+  }
+  let clipId = '';
+  let start = 0;
+  let end = 0;
+  s.apply((p) => {
+    let project = p;
+    let trackId = at?.trackId;
+    if (!trackId) {
+      const r = ensureTrackFor(p, trackKindFor(media.kind));
+      project = r.project;
+      trackId = r.trackId;
+    }
+    const clip = clipFromMedia(media, trackId, at?.start ?? s.playhead);
+    clipId = clip.id;
+    const next = placeClip(project, clip, trackId, clip.start);
+    const placed = findClip(next, clip.id);
+    start = placed?.start ?? 0;
+    end = placed ? clipEnd(placed) : 0;
+    return next;
+  });
+  s.select([clipId]);
+  if (!at) s.setPlayhead(end);
+  s.announce(`${media.name} ditambahkan di ${formatTimecode(start)}.`);
+}
+
+export function addTextClip(presetId: TextPresetId, at?: Placement & { duration?: number }): void {
+  const s = editor.get();
+  const preset = TEXT_PRESETS.find((t) => t.id === presetId) ?? TEXT_PRESETS[0];
+  if (!preset) return;
+  let clipId = '';
+  s.apply((p) => {
+    let project = p;
+    let trackId = at?.trackId;
+    if (!trackId) {
+      const r = ensureTrackFor(p, 'text');
+      project = r.project;
+      trackId = r.trackId;
+    }
+    const clip = textClipFromPreset(preset, p.aspect, trackId, at?.start ?? s.playhead, at?.duration);
+    clipId = clip.id;
+    return placeClip(project, clip, trackId, clip.start);
+  });
+  s.select([clipId]);
+  s.setRightTab('video');
+  s.announce(`Teks ${preset.label.toLowerCase()} ditambahkan.`);
+}
+
+/**
+ * Menambah klip efek. Tanpa `at`: menutupi klip visual terpilih bila ada, selain itu 3 detik di playhead.
+ */
+export function addEffectClip(effect: EffectId, at?: Placement & { duration?: number }): void {
+  const s = editor.get();
+  let start = at?.start ?? s.playhead;
+  let duration = at?.duration;
+  if (!at) {
+    const target = s.selection.map((id) => findClip(s.project, id)).find((c) => c && c.type !== 'audio' && c.type !== 'effect');
+    if (target) {
+      start = target.start;
+      duration = target.duration;
+    }
+  }
+  let clipId = '';
+  s.apply((p) => {
+    let project = p;
+    let trackId = at?.trackId;
+    if (!trackId) {
+      const r = ensureTrackFor(p, 'effect');
+      project = r.project;
+      trackId = r.trackId;
+    }
+    const clip = effectClip(effect, trackId, start, duration);
+    clipId = clip.id;
+    return placeClip(project, clip, trackId, clip.start);
+  });
+  s.select([clipId]);
+  s.announce(`Efek ${EFFECT_LABEL[effect].toLowerCase()} ditambahkan.`);
 }
