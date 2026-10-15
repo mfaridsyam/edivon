@@ -3,7 +3,9 @@ import {
   clipsOnTrack,
   findClip,
   findTrack,
+  isMagnetic,
   isSourceTimed,
+  mainTrackId,
   maxDuration,
   newId,
   nextTrackName,
@@ -37,10 +39,57 @@ export function updateClip(project: Project, id: string, fn: (clip: Clip) => Cli
   return replaceClip(project, fn(clip));
 }
 
+/* ---------- Lajur utama magnetis ---------- */
+
+/** Id klip di satu lajur menurut waktu mulai (untuk waktu yang sama: urutan array). */
+function trackOrder(project: Project, trackId: string, excludeId?: string): string[] {
+  return project.clips
+    .filter((c) => c.trackId === trackId && c.id !== excludeId)
+    .sort((a, b) => a.start - b.start)
+    .map((c) => c.id);
+}
+
+/** Menata klip menurut `order`, berurutan dari frame 0 tanpa celah. Proyek yang sama bila tidak ada yang bergeser. */
+function packTrack(project: Project, order: readonly string[]): Project {
+  const starts = new Map<string, number>();
+  let t = 0;
+  for (const id of order) {
+    const c = findClip(project, id);
+    if (!c) continue;
+    starts.set(id, t);
+    t += c.duration;
+  }
+  let changed = false;
+  const clips = project.clips.map((c) => {
+    const s = starts.get(c.id);
+    if (s === undefined || s === c.start) return c;
+    changed = true;
+    return { ...c, start: s };
+  });
+  return changed ? { ...project, clips } : project;
+}
+
+/** Merapatkan lajur utama ke kiri menurut urutan waktunya. */
+export function packMainTrack(project: Project): Project {
+  const id = mainTrackId(project);
+  return id ? packTrack(project, trackOrder(project, id)) : project;
+}
+
+/** Posisi sisip di lajur magnetis: setelah setiap klip yang titik tengahnya sudah dilewati `frame`. */
+function magneticIndex(project: Project, trackId: string, frame: number, excludeId?: string): number {
+  let index = 0;
+  for (const id of trackOrder(project, trackId, excludeId)) {
+    const c = findClip(project, id);
+    if (!c || c.start + c.duration / 2 > frame) break;
+    index += 1;
+  }
+  return index;
+}
+
 export function deleteClips(project: Project, ids: readonly string[]): Project {
   if (ids.length === 0) return project;
   const set = new Set(ids);
-  return { ...project, clips: project.clips.filter((c) => !set.has(c.id)) };
+  return packMainTrack({ ...project, clips: project.clips.filter((c) => !set.has(c.id)) });
 }
 
 /** Akhir klip terdekat di sebelah kiri `clip` pada lajur yang sama (atau 0). */
@@ -75,6 +124,10 @@ function resolveStart(onTrack: readonly Clip[], start: number): number {
 
 /** Posisi yang akan dipakai `placeClip`, untuk bayangan saat media diseret ke timeline. */
 export function previewPlacement(project: Project, trackId: string, start: number, excludeId?: string): number {
+  if (isMagnetic(project, trackId)) {
+    const before = trackOrder(project, trackId, excludeId).slice(0, magneticIndex(project, trackId, start, excludeId));
+    return before.reduce((sum, id) => sum + (findClip(project, id)?.duration ?? 0), 0);
+  }
   return resolveStart(
     project.clips.filter((c) => c.trackId === trackId && c.id !== excludeId).sort((a, b) => a.start - b.start),
     start,
@@ -86,8 +139,18 @@ export function previewPlacement(project: Project, trackId: string, start: numbe
  * - Bila `start` jatuh di dalam klip lain, klip ditaruh sebelum klip itu (paruh kiri) atau sesudahnya (paruh kanan).
  * - Klip yang tertimpa di sebelah kanan didorong ke kanan sejauh yang dibutuhkan, beserta klip setelahnya.
  * Klip yang sudah ada di proyek (dengan id sama) dipindahkan.
+ * Di lajur utama, klip disisipkan di antara klip lain lalu semuanya dirapatkan ke kiri.
  */
 export function placeClip(project: Project, clip: Clip, trackId: string, start: number): Project {
+  const existing = project.clips.some((c) => c.id === clip.id);
+  if (isMagnetic(project, trackId)) {
+    const order = trackOrder(project, trackId, clip.id);
+    order.splice(magneticIndex(project, trackId, start, clip.id), 0, clip.id);
+    const placed = { ...clip, trackId };
+    const clips = existing ? project.clips.map((c) => (c.id === clip.id ? placed : c)) : [...project.clips, placed];
+    return packTrack({ ...project, clips }, order);
+  }
+
   const others = project.clips.filter((c) => c.id !== clip.id);
   const onTrack = others.filter((c) => c.trackId === trackId).sort((a, b) => a.start - b.start);
 
@@ -100,7 +163,6 @@ export function placeClip(project: Project, clip: Clip, trackId: string, start: 
   const pushed = (c: Clip) =>
     shift > 0 && c.trackId === trackId && c.start >= s ? { ...c, start: c.start + shift } : c;
   // Klip yang sudah ada tetap di posisinya dalam array, agar urutan render (dan node DOM) stabil.
-  const existing = project.clips.some((c) => c.id === clip.id);
   const clips = existing
     ? project.clips.map((c) => (c.id === clip.id ? placed : pushed(c)))
     : [...others.map(pushed), placed];
@@ -112,13 +174,27 @@ export function moveClip(project: Project, id: string, trackId: string, start: n
   const clip = findClip(project, id);
   const track = findTrack(project, trackId);
   if (!clip || !track || !trackAccepts(track.kind, clip.type)) return project;
-  return placeClip(project, clip, trackId, start);
+  // Bila klip keluar dari lajur utama, celah yang ditinggalkannya ditutup.
+  return packMainTrack(placeClip(project, clip, trackId, start));
 }
 
-/** Menggeser klip sejauh `delta` frame, berhenti di tepi tetangganya (dipakai untuk tombol panah). */
+/**
+ * Menggeser klip sejauh `delta` frame, berhenti di tepi tetangganya (dipakai untuk tombol panah).
+ * Di lajur utama, klip bertukar tempat dengan klip sebelum atau sesudahnya.
+ */
 export function nudgeClip(project: Project, id: string, delta: number): Project {
   const clip = findClip(project, id);
   if (!clip) return project;
+  if (isMagnetic(project, clip.trackId)) {
+    const order = trackOrder(project, clip.trackId);
+    const i = order.indexOf(id);
+    const j = i + Math.sign(delta);
+    const other = order[j];
+    if (j === i || other === undefined) return project;
+    order[j] = id;
+    order[i] = other;
+    return packTrack(project, order);
+  }
   const lo = previousEnd(project, clip);
   const hi = nextStart(project, clip) - clip.duration;
   const start = clamp(clip.start + Math.round(delta), lo, Math.max(lo, hi));
@@ -126,11 +202,17 @@ export function nudgeClip(project: Project, id: string, delta: number): Project 
   return replaceClip(project, { ...clip, start });
 }
 
-/** Trim tepi kiri: memindahkan awal klip ke `newStart`, isi sumber ikut bergeser. */
+/**
+ * Trim tepi kiri: memindahkan awal klip ke `newStart`, isi sumber ikut bergeser.
+ * Di lajur utama awal klip tetap menempel ke klip sebelumnya; yang berubah isi dan durasinya,
+ * lalu klip sesudahnya ikut bergeser.
+ */
 export function trimStart(project: Project, id: string, newStart: number): Project {
   const clip = findClip(project, id);
   if (!clip) return project;
-  let lo = previousEnd(project, clip);
+  const magnetic = isMagnetic(project, clip.trackId);
+  const order = magnetic ? trackOrder(project, clip.trackId) : [];
+  let lo = magnetic ? Number.NEGATIVE_INFINITY : previousEnd(project, clip);
   if (isSourceTimed(clip)) {
     lo = Math.max(lo, clip.start - Math.floor((clip.in / clip.speed) * FPS + 1e-6));
   }
@@ -139,23 +221,26 @@ export function trimStart(project: Project, id: string, newStart: number): Proje
   const delta = s - clip.start;
   if (delta === 0) return project;
   const base = { ...clip, start: s, duration: clip.duration - delta };
-  if (isSourceTimed(clip)) {
-    const inPoint = Math.max(0, roundSeconds(clip.in + (delta / FPS) * clip.speed));
-    return replaceClip(project, { ...base, in: inPoint } as Clip);
-  }
-  return replaceClip(project, base);
+  const trimmed = isSourceTimed(clip)
+    ? ({ ...base, in: Math.max(0, roundSeconds(clip.in + (delta / FPS) * clip.speed)) } as Clip)
+    : base;
+  const next = replaceClip(project, trimmed);
+  return magnetic ? packTrack(next, order) : next;
 }
 
-/** Trim tepi kanan: mengubah akhir klip menjadi `newEnd`. */
+/** Trim tepi kanan: mengubah akhir klip menjadi `newEnd`. Di lajur utama, klip sesudahnya ikut bergeser. */
 export function trimEnd(project: Project, id: string, newEnd: number): Project {
   const clip = findClip(project, id);
   if (!clip) return project;
+  const magnetic = isMagnetic(project, clip.trackId);
   const lo = clip.start + 1;
-  const hi = Math.min(nextStart(project, clip), clip.start + maxDuration(clip));
+  const limit = clip.start + maxDuration(clip);
+  const hi = magnetic ? limit : Math.min(nextStart(project, clip), limit);
   const end = clamp(Math.round(newEnd), lo, Math.max(lo, hi));
   const duration = end - clip.start;
   if (duration === clip.duration) return project;
-  return replaceClip(project, { ...clip, duration });
+  const next = replaceClip(project, { ...clip, duration });
+  return magnetic ? packTrack(next, trackOrder(project, clip.trackId)) : next;
 }
 
 /**
@@ -233,6 +318,9 @@ export function setSpeed(project: Project, id: string, speed: Speed): Project {
   const span = (clip.duration / FPS) * clip.speed;
   const updated = { ...clip, speed };
   const duration = clamp(Math.round((span / speed) * FPS), 1, maxDuration(updated));
+  if (isMagnetic(project, clip.trackId)) {
+    return packTrack(replaceClip(project, { ...updated, duration }), trackOrder(project, clip.trackId));
+  }
   const next = nextStart(project, clip);
   const end = clip.start + duration;
   const shift = Number.isFinite(next) ? Math.max(0, end - next) : 0;
@@ -284,12 +372,9 @@ export function updateTrack(project: Project, id: string, patch: Partial<Pick<Tr
 
 /** Lajur pertama yang menerima jenis klip, atau lajur baru bila belum ada. */
 export function ensureTrackFor(project: Project, kind: TrackKind): { project: Project; trackId: string } {
-  const existing =
-    kind === 'video'
-      ? // Klip video baru masuk ke lajur video paling bawah (Video 1) sebagai lajur utama.
-        [...project.tracks].reverse().find((t) => t.kind === 'video')
-      : project.tracks.find((t) => t.kind === kind);
-  if (existing) return { project, trackId: existing.id };
+  // Klip video baru masuk ke lajur utama (Video 1).
+  const existing = kind === 'video' ? mainTrackId(project) : project.tracks.find((t) => t.kind === kind)?.id;
+  if (existing) return { project, trackId: existing };
   return addTrack(project, kind);
 }
 

@@ -6,6 +6,7 @@ Editor video yang berjalan sepenuhnya di browser. Tidak ada server dan tidak ada
 
 - Impor video, audio, dan gambar lewat seret-lepas atau tombol **Pilih berkas**. Durasi, dimensi, dan thumbnail dibaca di browser.
 - Timeline dengan lajur Teks, Video 2, Video 1, dan Audio 1. Kamu bisa menambah lajur video, audio, teks, atau efek. Klip bisa digeser antarlajur, menempel ke klip lain dan playhead, di-trim dari tepi, dibelah, dan dihapus. Ada juga zoom timeline.
+- Video 1 adalah lajur utama yang magnetis: klipnya selalu rapat ke kiri mulai 0:00 tanpa celah, baik saat ditambah, diseret (urutannya bertukar), dipotong, diubah kecepatannya, maupun dihapus. Lajur lain (Video 2, Teks, Audio, Efek) bebas diatur posisinya.
 - Alat: Pilih, Belah, Teks, Crop, Kecepatan, Volume, Efek, dan Hapus. Dengan alat Pilih, tarik ujung klip untuk memendekkan atau memanjangkannya. Q dan W memotong awal atau akhir klip ke posisi playhead.
 - Properti klip: skala, posisi, rotasi, opasitas, kecepatan (0,5× sampai 4×), kecerahan, kontras, saturasi, volume, dan tombol **Setel ulang**.
 - Klip video, gambar, dan teks bisa dipilih langsung di pratinjau. Seret untuk memindahkannya (menempel ke garis tengah), atau tarik sudutnya untuk mengubah skala.
@@ -86,7 +87,7 @@ Setiap push ke branch utama akan memicu deploy baru.
 | ← / → | Geser playhead satu frame (Shift: satu detik) |
 | Esc | Tutup popover, kembali ke alat Pilih, atau hapus seleksi |
 
-Untuk klip yang sedang difokus: Enter memilih atau menjalankan alat aktif, panah menggeser klip, dan Delete menghapus klip itu. Di pratinjau, panah menggeser klip terpilih 1 piksel (Shift: 10 piksel).
+Untuk klip yang sedang difokus: Enter memilih atau menjalankan alat aktif, panah menggeser klip (di Video 1: menukar urutannya dengan klip di sebelahnya), dan Delete menghapus klip itu. Di pratinjau, panah menggeser klip terpilih 1 piksel (Shift: 10 piksel).
 
 ## Struktur
 

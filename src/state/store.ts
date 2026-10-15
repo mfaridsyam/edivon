@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { createProject, findClip, type Project } from '../timeline/model';
+import { packMainTrack } from '../timeline/ops';
 import {
   canRedo,
   canUndo,
@@ -86,7 +87,8 @@ export const useEditor = create<EditorState>()((set, get) => {
     apply: (fn, opts) => {
       const s = get();
       if (s.gestureBase) return;
-      const next = fn(s.project);
+      // Lajur utama selalu rapat ke kiri, apa pun operasinya.
+      const next = packMainTrack(fn(s.project));
       if (next === s.project) return;
       const history = commit(s.history, next, { coalesce: opts?.coalesce });
       set({ project: next, history, selection: pruneSelection(s.selection, next) });
@@ -101,7 +103,7 @@ export const useEditor = create<EditorState>()((set, get) => {
     updateGesture: (fn) => {
       const base = get().gestureBase;
       if (!base) return;
-      set({ project: fn(base) });
+      set({ project: packMainTrack(fn(base)) });
     },
 
     endGesture: () => {

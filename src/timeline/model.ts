@@ -188,6 +188,22 @@ export function findTrack(project: Project, id: string): Track | undefined {
   return project.tracks.find((t) => t.id === id);
 }
 
+/**
+ * Lajur utama: lajur video paling bawah (Video 1). Lajur ini magnetis: klipnya selalu rapat ke kiri
+ * mulai frame 0 tanpa celah. Lajur lain (video atas, teks, audio, efek) bebas diatur posisinya.
+ */
+export function mainTrackId(project: Project): string | undefined {
+  for (let i = project.tracks.length - 1; i >= 0; i--) {
+    const t = project.tracks[i];
+    if (t?.kind === 'video') return t.id;
+  }
+  return undefined;
+}
+
+export function isMagnetic(project: Project, trackId: string): boolean {
+  return trackId === mainTrackId(project);
+}
+
 /** Klip pada satu lajur, terurut menurut waktu mulai. */
 export function clipsOnTrack(project: Project, trackId: string): Clip[] {
   return project.clips.filter((c) => c.trackId === trackId).sort((a, b) => a.start - b.start);

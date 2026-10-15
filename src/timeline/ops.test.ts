@@ -6,7 +6,9 @@ import {
   ensureTrackFor,
   moveClip,
   nudgeClip,
+  packMainTrack,
   placeClip,
+  previewPlacement,
   setSpeed,
   splitAt,
   splitClip,
@@ -15,6 +17,10 @@ import {
   trimStart,
 } from './ops';
 import { audio, image, layout, projectWith, video } from './test-helpers';
+
+/** Video 2: lajur video bebas (bukan lajur utama). */
+const V2 = 'track-video-2';
+const onV2 = { trackId: V2 };
 
 describe('model', () => {
   it('membuat proyek dengan lajur Teks, Video 2, Video 1, Audio 1', () => {
@@ -35,24 +41,24 @@ describe('model', () => {
   });
 });
 
-describe('placeClip', () => {
+describe('placeClip (lajur bebas)', () => {
   it('menaruh klip di ruang kosong apa adanya', () => {
-    const p = placeClip(projectWith(video('a', 0, 30)), video('b', 0, 20), 'track-video-1', 60);
-    expect(layout(p)).toEqual([
+    const p = placeClip(projectWith(video('a', 0, 30, onV2)), video('b', 0, 20, onV2), V2, 60);
+    expect(layout(p, V2)).toEqual([
       ['a', 0, 30],
       ['b', 60, 20],
     ]);
   });
 
   it('tidak pernah menaruh klip sebelum frame 0', () => {
-    const p = placeClip(createProject(), video('a', 0, 30), 'track-video-1', -15);
-    expect(layout(p)).toEqual([['a', 0, 30]]);
+    const p = placeClip(createProject(), video('a', 0, 30, onV2), V2, -15);
+    expect(layout(p, V2)).toEqual([['a', 0, 30]]);
   });
 
   it('mendorong klip kanan bila tumpang tindih di ujung', () => {
-    const p = placeClip(projectWith(video('a', 0, 30), video('c', 40, 10)), video('b', 0, 20), 'track-video-1', 25);
+    const p = placeClip(projectWith(video('a', 0, 30, onV2), video('c', 40, 10, onV2)), video('b', 0, 20, onV2), V2, 25);
     // 25 ada di paruh kanan "a" (0..30) sehingga "b" ditaruh di 30, lalu "c" didorong.
-    expect(layout(p)).toEqual([
+    expect(layout(p, V2)).toEqual([
       ['a', 0, 30],
       ['b', 30, 20],
       ['c', 50, 10],
@@ -60,16 +66,16 @@ describe('placeClip', () => {
   });
 
   it('menyisipkan sebelum klip bila jatuh di paruh kirinya', () => {
-    const p = placeClip(projectWith(video('a', 0, 30)), video('b', 0, 20), 'track-video-1', 10);
-    expect(layout(p)).toEqual([
+    const p = placeClip(projectWith(video('a', 0, 30, onV2)), video('b', 0, 20, onV2), V2, 10);
+    expect(layout(p, V2)).toEqual([
       ['b', 0, 20],
       ['a', 20, 30],
     ]);
   });
 
   it('menjaga jarak antar klip yang didorong', () => {
-    const p = placeClip(projectWith(video('a', 0, 30), video('c', 60, 30)), video('b', 0, 40), 'track-video-1', 30);
-    expect(layout(p)).toEqual([
+    const p = placeClip(projectWith(video('a', 0, 30, onV2), video('c', 60, 30, onV2)), video('b', 0, 40, onV2), V2, 30);
+    expect(layout(p, V2)).toEqual([
       ['a', 0, 30],
       ['b', 30, 40],
       ['c', 70, 30],
@@ -77,7 +83,7 @@ describe('placeClip', () => {
   });
 
   it('tidak menyentuh lajur lain', () => {
-    const p = placeClip(projectWith(video('a', 0, 30), audio('x', 0, 30)), video('b', 0, 20), 'track-video-1', 0);
+    const p = placeClip(projectWith(video('a', 0, 30, onV2), audio('x', 0, 30)), video('b', 0, 20, onV2), V2, 0);
     expect(layout(p, 'track-audio-1')).toEqual([['x', 0, 30]]);
   });
 });
@@ -108,14 +114,14 @@ describe('moveClip', () => {
   });
 });
 
-describe('nudgeClip', () => {
+describe('nudgeClip (lajur bebas)', () => {
   it('berhenti di tepi tetangga', () => {
-    const p0 = projectWith(video('a', 0, 30), video('b', 40, 10));
-    expect(layout(nudgeClip(p0, 'b', -20))).toEqual([
+    const p0 = projectWith(video('a', 0, 30, onV2), video('b', 40, 10, onV2));
+    expect(layout(nudgeClip(p0, 'b', -20), V2)).toEqual([
       ['a', 0, 30],
       ['b', 30, 10],
     ]);
-    expect(layout(nudgeClip(p0, 'a', 25))).toEqual([
+    expect(layout(nudgeClip(p0, 'a', 25), V2)).toEqual([
       ['a', 10, 30],
       ['b', 40, 10],
     ]);
@@ -164,66 +170,66 @@ describe('splitClip', () => {
   });
 });
 
-describe('trim', () => {
+describe('trim (lajur bebas)', () => {
   it('trim kiri menggeser titik masuk sumber', () => {
-    const p = trimStart(projectWith(video('a', 30, 60, { in: 1 })), 'a', 45);
+    const p = trimStart(projectWith(video('a', 30, 60, { ...onV2, in: 1 })), 'a', 45);
     const a = findClip(p, 'a') as VideoClip;
     expect([a.start, a.duration]).toEqual([45, 45]);
     expect(a.in).toBeCloseTo(1.5);
   });
 
   it('trim kiri tidak bisa melewati awal sumber', () => {
-    const p = trimStart(projectWith(video('a', 60, 30, { in: 1 })), 'a', 0);
+    const p = trimStart(projectWith(video('a', 60, 30, { ...onV2, in: 1 })), 'a', 0);
     const a = findClip(p, 'a') as VideoClip;
     expect([a.start, a.duration, a.in]).toEqual([30, 60, 0]);
   });
 
   it('trim kiri berhenti di klip sebelumnya', () => {
-    const p = trimStart(projectWith(video('x', 0, 20), video('a', 30, 30, { in: 5 })), 'a', 0);
-    expect(layout(p)).toEqual([
+    const p = trimStart(projectWith(video('x', 0, 20, onV2), video('a', 30, 30, { ...onV2, in: 5 })), 'a', 0);
+    expect(layout(p, V2)).toEqual([
       ['x', 0, 20],
       ['a', 20, 40],
     ]);
   });
 
   it('trim kiri menyisakan minimal satu frame', () => {
-    const p = trimStart(projectWith(video('a', 0, 30)), 'a', 100);
-    expect(layout(p)).toEqual([['a', 29, 1]]);
+    const p = trimStart(projectWith(video('a', 0, 30, onV2)), 'a', 100);
+    expect(layout(p, V2)).toEqual([['a', 29, 1]]);
   });
 
   it('trim kanan dibatasi panjang sumber', () => {
-    const p = trimEnd(projectWith(video('a', 0, 30, { in: 8, sourceDuration: 10 })), 'a', 500);
-    expect(layout(p)).toEqual([['a', 0, 60]]);
+    const p = trimEnd(projectWith(video('a', 0, 30, { ...onV2, in: 8, sourceDuration: 10 })), 'a', 500);
+    expect(layout(p, V2)).toEqual([['a', 0, 60]]);
   });
 
   it('trim kanan berhenti di klip berikutnya', () => {
-    const p = trimEnd(projectWith(video('a', 0, 30), video('b', 50, 10)), 'a', 90);
-    expect(layout(p)).toEqual([
+    const p = trimEnd(projectWith(video('a', 0, 30, onV2), video('b', 50, 10, onV2)), 'a', 90);
+    expect(layout(p, V2)).toEqual([
       ['a', 0, 50],
       ['b', 50, 10],
     ]);
   });
 
   it('gambar bisa diperpanjang tanpa batas sumber', () => {
-    const p = trimEnd(projectWith(image('i', 0, 150)), 'i', 900);
+    const p = trimEnd(projectWith(image('i', 0, 150, onV2)), 'i', 900);
     expect(clipEnd(findClip(p, 'i')!)).toBe(900);
   });
   it('memotong awal atau akhir ke playhead (Q/W)', () => {
-    const base = projectWith(video('a', 0, 60, { in: 1 }), audio('m', 30, 60));
+    const base = projectWith(video('a', 0, 60, { ...onV2, in: 1 }), audio('m', 30, 60));
     const start = trimAt(base, 45, 'start');
     expect(start.trimmed.sort()).toEqual(['a', 'm']);
-    expect(layout(start.project)).toEqual([['a', 45, 15]]);
+    expect(layout(start.project, V2)).toEqual([['a', 45, 15]]);
     expect(layout(start.project, 'track-audio-1')).toEqual([['m', 45, 45]]);
     expect((findClip(start.project, 'a') as VideoClip).in).toBeCloseTo(2.5);
 
     const end = trimAt(base, 45, 'end', ['a']);
     expect(end.trimmed).toEqual(['a']);
-    expect(layout(end.project)).toEqual([['a', 0, 45]]);
+    expect(layout(end.project, V2)).toEqual([['a', 0, 45]]);
     expect(layout(end.project, 'track-audio-1')).toEqual([['m', 30, 60]]);
   });
 
   it('tidak memotong bila playhead di luar klip atau tepat di ujungnya', () => {
-    const base = projectWith(video('a', 30, 30));
+    const base = projectWith(video('a', 30, 30, onV2));
     expect(trimAt(base, 10, 'end').trimmed).toEqual([]);
     expect(trimAt(base, 30, 'start').trimmed).toEqual([]);
     expect(trimAt(base, 60, 'end').project).toBe(base);
@@ -264,8 +270,147 @@ describe('lajur', () => {
     expect(r.project.tracks.some((t) => t.id === r.trackId && t.kind === 'effect')).toBe(true);
   });
 
-  it('menghapus klip', () => {
-    const p = deleteClips(projectWith(video('a', 0, 30), video('b', 30, 30)), ['a']);
-    expect(layout(p)).toEqual([['b', 30, 30]]);
+  it('menghapus klip di lajur bebas tanpa menggeser yang lain', () => {
+    const p = deleteClips(projectWith(video('a', 0, 30, onV2), video('b', 30, 30, onV2)), ['a']);
+    expect(layout(p, V2)).toEqual([['b', 30, 30]]);
+  });
+});
+
+describe('lajur utama magnetis (Video 1)', () => {
+  it('klip pertama selalu mulai di 0 walau dijatuhkan jauh di kanan', () => {
+    const p = placeClip(createProject(), video('a', 0, 30), 'track-video-1', 540);
+    expect(layout(p)).toEqual([['a', 0, 30]]);
+  });
+
+  it('menyisipkan di antara klip menurut titik tengahnya, lalu merapatkan', () => {
+    const base = projectWith(video('a', 0, 30), video('b', 30, 30));
+    expect(layout(placeClip(base, video('c', 0, 20), 'track-video-1', 40))).toEqual([
+      ['a', 0, 30],
+      ['c', 30, 20],
+      ['b', 50, 30],
+    ]);
+    expect(layout(placeClip(base, video('c', 0, 20), 'track-video-1', 10))).toEqual([
+      ['c', 0, 20],
+      ['a', 20, 30],
+      ['b', 50, 30],
+    ]);
+    expect(layout(placeClip(base, video('c', 0, 20), 'track-video-1', 900))).toEqual([
+      ['a', 0, 30],
+      ['b', 30, 30],
+      ['c', 60, 20],
+    ]);
+  });
+
+  it('bayangan seret menunjuk batas klip tempat sisipan', () => {
+    const base = projectWith(video('a', 0, 30), video('b', 30, 30));
+    expect(previewPlacement(base, 'track-video-1', 40)).toBe(30);
+    expect(previewPlacement(base, 'track-video-1', 500)).toBe(60);
+    expect(previewPlacement(base, 'track-video-2', 500)).toBe(500);
+  });
+
+  it('menyeret klip mengubah urutan tanpa celah', () => {
+    const base = projectWith(video('a', 0, 30), video('b', 30, 45), video('c', 75, 10));
+    expect(layout(moveClip(base, 'c', 'track-video-1', 0))).toEqual([
+      ['c', 0, 10],
+      ['a', 10, 30],
+      ['b', 40, 45],
+    ]);
+    expect(layout(moveClip(base, 'a', 'track-video-1', 60))).toEqual([
+      ['b', 0, 45],
+      ['a', 45, 30],
+      ['c', 75, 10],
+    ]);
+  });
+
+  it('memindah klip ke Video 2 menutup celahnya, dan kembali ke Video 1 disisipkan', () => {
+    const base = projectWith(video('a', 0, 30), video('b', 30, 30), video('c', 60, 30));
+    const out = moveClip(base, 'b', V2, 100);
+    expect(layout(out)).toEqual([
+      ['a', 0, 30],
+      ['c', 30, 30],
+    ]);
+    expect(layout(out, V2)).toEqual([['b', 100, 30]]);
+    expect(layout(moveClip(out, 'b', 'track-video-1', 0))).toEqual([
+      ['b', 0, 30],
+      ['a', 30, 30],
+      ['c', 60, 30],
+    ]);
+  });
+
+  it('panah menukar klip dengan tetangganya', () => {
+    const base = projectWith(video('a', 0, 30), video('b', 30, 10));
+    expect(layout(nudgeClip(base, 'b', -1))).toEqual([
+      ['b', 0, 10],
+      ['a', 10, 30],
+    ]);
+    expect(layout(nudgeClip(base, 'a', 30))).toEqual([
+      ['b', 0, 10],
+      ['a', 10, 30],
+    ]);
+    expect(nudgeClip(base, 'a', -1)).toBe(base);
+    expect(nudgeClip(base, 'b', 1)).toBe(base);
+  });
+
+  it('memendekkan ujung kanan menarik klip berikutnya; memanjangkan mendorongnya', () => {
+    const base = projectWith(video('a', 0, 60), video('b', 60, 30));
+    expect(layout(trimEnd(base, 'a', 40))).toEqual([
+      ['a', 0, 40],
+      ['b', 40, 30],
+    ]);
+    // Tidak berhenti di klip berikutnya; dibatasi panjang sumber (10 detik = 300 frame).
+    expect(layout(trimEnd(base, 'a', 1000))).toEqual([
+      ['a', 0, 300],
+      ['b', 300, 30],
+    ]);
+  });
+
+  it('ujung kiri tetap menempel; isi sumber dan klip berikutnya yang bergeser', () => {
+    const base = projectWith(video('x', 0, 30), video('a', 30, 60, { in: 2 }), video('b', 90, 30));
+    const shorter = trimStart(base, 'a', 45);
+    expect(layout(shorter)).toEqual([
+      ['x', 0, 30],
+      ['a', 30, 45],
+      ['b', 75, 30],
+    ]);
+    expect((findClip(shorter, 'a') as VideoClip).in).toBeCloseTo(2.5);
+
+    // Ditarik ke kiri: memunculkan isi sebelumnya (sampai awal sumber), urutan tetap.
+    const longer = trimStart(base, 'a', -500);
+    expect(layout(longer)).toEqual([
+      ['x', 0, 30],
+      ['a', 30, 120],
+      ['b', 150, 30],
+    ]);
+    expect((findClip(longer, 'a') as VideoClip).in).toBe(0);
+  });
+
+  it('Q di lajur utama membuang bagian sebelum playhead tanpa meninggalkan celah', () => {
+    const base = projectWith(video('a', 0, 60, { in: 1 }), video('b', 60, 30));
+    const { project } = trimAt(base, 45, 'start');
+    expect(layout(project)).toEqual([
+      ['a', 0, 15],
+      ['b', 15, 30],
+    ]);
+    expect((findClip(project, 'a') as VideoClip).in).toBeCloseTo(2.5);
+  });
+
+  it('mengubah kecepatan dan menghapus klip tetap rapat', () => {
+    const base = projectWith(video('a', 0, 120), video('b', 120, 30));
+    expect(layout(setSpeed(base, 'a', 2))).toEqual([
+      ['a', 0, 60],
+      ['b', 60, 30],
+    ]);
+    expect(layout(deleteClips(base, ['a']))).toEqual([['b', 0, 30]]);
+  });
+
+  it('merapatkan proyek lama yang masih bercelah, tanpa membuat objek baru bila sudah rapat', () => {
+    const gappy = projectWith(video('a', 540, 30), video('b', 900, 30), video('t', 300, 30, onV2));
+    const packed = packMainTrack(gappy);
+    expect(layout(packed)).toEqual([
+      ['a', 0, 30],
+      ['b', 30, 30],
+    ]);
+    expect(layout(packed, V2)).toEqual([['t', 300, 30]]);
+    expect(packMainTrack(packed)).toBe(packed);
   });
 });

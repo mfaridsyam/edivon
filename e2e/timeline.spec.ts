@@ -45,18 +45,54 @@ test('memendekkan klip: tarik ujung dengan alat Pilih, atau Q/W ke playhead', as
   await expect(clip).toHaveAttribute('aria-label', /Mulai 00:00:00\.00, durasi 3 detik/);
   await expect(page.getByRole('status')).toContainText('Akhir klip dipotong ke 00:00:03.00');
 
-  // Q: awal klip dipotong ke playhead (detik 1); bagian sumbernya ikut bergeser.
+  // Q: bagian sebelum playhead (detik 1) dibuang; di lajur utama klip tetap mulai di 0.
   for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowLeft');
   await page.keyboard.press('q');
-  await expect(clip).toHaveAttribute('aria-label', /Mulai 00:00:01\.00, durasi 2 detik/);
+  await expect(clip).toHaveAttribute('aria-label', /Mulai 00:00:00\.00, durasi 2 detik/);
 
   // Playhead di luar klip: tidak ada yang berubah.
-  await page.keyboard.press('Home');
+  await page.keyboard.press('End');
+  await page.keyboard.press('Shift+ArrowRight');
   await page.keyboard.press('w');
   await expect(page.getByRole('status')).toContainText('Playhead tidak berada di dalam klip terpilih.');
-  await expect(clip).toHaveAttribute('aria-label', /Mulai 00:00:01\.00, durasi 2 detik/);
+  await expect(clip).toHaveAttribute('aria-label', /Mulai 00:00:00\.00, durasi 2 detik/);
 
   // Satu Ctrl+Z per potongan.
   await page.keyboard.press('Control+z');
   await expect(clip).toHaveAttribute('aria-label', /Mulai 00:00:00\.00, durasi 3 detik/);
+});
+
+test('Video 1 selalu rapat ke kiri: saat ditambah, dibelah, dan dihapus', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Pilih berkas video, audio, atau gambar').setInputFiles([fixture('contoh-pantai'), fixture('contoh-gunung')]);
+  const pantai = page.getByRole('option', { name: /contoh-pantai.*durasi/ });
+  const gunung = page.getByRole('option', { name: /contoh-gunung.*durasi/ });
+  const lane = page.getByRole('group', { name: 'Lajur Video 1' });
+  const clips = page.locator('[aria-roledescription="klip"]');
+
+  // Dijatuhkan jauh di kanan, tetap mulai di 0:00; klip kedua menyambung di belakangnya.
+  await pantai.dragTo(lane, { targetPosition: { x: 700, y: 20 } });
+  await expect(clips).toHaveCount(1);
+  await expect(clips.first()).toHaveAttribute('aria-label', /^Video: contoh-pantai.*Mulai 00:00:00\.00, durasi 4 detik/);
+  await gunung.dragTo(lane, { targetPosition: { x: 900, y: 20 } });
+  await expect(clips.filter({ hasText: 'contoh-gunung' })).toHaveAttribute('aria-label', /Mulai 00:00:04\.00/);
+
+  // Belah pantai di detik 2 (alat Belah, Enter pada klip), lalu hapus potongan kirinya.
+  const playhead = page.getByRole('slider', { name: 'Playhead' });
+  await playhead.focus();
+  await page.keyboard.press('Home');
+  for (let i = 0; i < 2; i++) await page.keyboard.press('Shift+ArrowRight');
+  await page.keyboard.press('s');
+  await clips.filter({ hasText: 'contoh-pantai' }).first().focus();
+  await page.keyboard.press('Enter');
+  await expect(clips).toHaveCount(3);
+
+  await page.keyboard.press('v');
+  const leftPart = page.locator('[aria-roledescription="klip"][aria-label*="contoh-pantai"][aria-label*="Mulai 00:00:00.00"]');
+  await leftPart.click();
+  await page.keyboard.press('Delete');
+  await expect(clips).toHaveCount(2);
+  const labels = await clips.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label') ?? ''));
+  const starts = labels.map((l) => /Mulai ([\d:.]+)/.exec(l)?.[1]).sort();
+  expect(starts).toEqual(['00:00:00.00', '00:00:02.00']);
 });
