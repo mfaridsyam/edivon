@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PreviewEngine } from '../engine/preview';
 import { jumpToEnd, jumpToStart } from '../state/actions';
 import { useEditor } from '../state/store';
-import { frameSize, projectDuration, type Aspect } from '../timeline/model';
+import { ASPECTS, frameSize, projectDuration } from '../timeline/model';
 import { formatTimecode } from '../timeline/time';
 import { IconButton } from '../ui/Button';
 import { Segmented } from '../ui/Controls';
@@ -15,11 +15,7 @@ import './stage.css';
 const MAX_FRAME_W = 560;
 const STAGE_PAD = 24;
 
-const ASPECTS = [
-  { value: '16:9', label: '16:9' },
-  { value: '9:16', label: '9:16' },
-  { value: '1:1', label: '1:1' },
-] as const satisfies readonly { value: Aspect; label: string }[];
+const ASPECT_OPTIONS = ASPECTS.map((value) => ({ value, label: value }));
 
 function Timecode() {
   const playhead = useEditor((s) => s.playhead);
@@ -71,7 +67,7 @@ function Transport({ onFullscreen }: { onFullscreen: () => void }) {
         <Segmented
           label="Rasio"
           mono
-          options={ASPECTS}
+          options={ASPECT_OPTIONS}
           value={aspect}
           onChange={(value) => apply((p) => ({ ...p, aspect: value }))}
         />

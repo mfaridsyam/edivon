@@ -12,7 +12,26 @@ export interface Track {
   muted: boolean;
 }
 
-export type Aspect = '16:9' | '9:16' | '1:1';
+export type Aspect = '16:9' | '4:3' | '1:1' | '3:4' | '9:16';
+
+/** Urutan tampil di pratinjau: dari lanskap ke potret. */
+export const ASPECTS: readonly Aspect[] = ['16:9', '4:3', '1:1', '3:4', '9:16'];
+
+/** Perbandingan lebar dan tinggi tiap rasio. */
+export const ASPECT_RATIO: Record<Aspect, readonly [width: number, height: number]> = {
+  '16:9': [16, 9],
+  '4:3': [4, 3],
+  '1:1': [1, 1],
+  '3:4': [3, 4],
+  '9:16': [9, 16],
+};
+
+/** Ukuran bingkai untuk rasio dengan sisi pendek tertentu; dibulatkan ke angka genap untuk encoder. */
+export function sizeForShortSide(aspect: Aspect, short: number): { width: number; height: number } {
+  const [w, h] = ASPECT_RATIO[aspect];
+  const even = (n: number) => Math.round(n / 2) * 2;
+  return w >= h ? { width: even((short * w) / h), height: short } : { width: short, height: even((short * h) / w) };
+}
 export type Speed = 0.5 | 1 | 2 | 4;
 export const SPEEDS: readonly Speed[] = [0.5, 1, 2, 4];
 
@@ -143,15 +162,9 @@ export function newId(prefix: string): string {
   return `${prefix}-${rand}-${idCounter}`;
 }
 
+/** Bingkai acuan (sisi pendek 1080) tempat posisi dan ukuran teks dinyatakan. */
 export function frameSize(aspect: Aspect): { width: number; height: number } {
-  switch (aspect) {
-    case '16:9':
-      return { width: 1920, height: 1080 };
-    case '9:16':
-      return { width: 1080, height: 1920 };
-    case '1:1':
-      return { width: 1080, height: 1080 };
-  }
+  return sizeForShortSide(aspect, 1080);
 }
 
 export function createProject(): Project {

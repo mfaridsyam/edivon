@@ -1,20 +1,12 @@
 import { Quality, canEncodeAudio, canEncodeVideo } from 'mediabunny';
-import type { Aspect } from '../timeline/model';
+import { sizeForShortSide, type Aspect } from '../timeline/model';
 import { AUDIO_CHANNELS, AUDIO_RATE, CODECS, type ExportFormat, type ExportResolution } from './protocol';
 
 export const RESOLUTIONS: readonly ExportResolution[] = [720, 1080, 2160];
 
 /** Ukuran keluaran (genap) untuk rasio dan sisi pendek tertentu. */
 export function outputSize(aspect: Aspect, short: ExportResolution): { width: number; height: number } {
-  const even = (n: number) => Math.round(n / 2) * 2;
-  switch (aspect) {
-    case '16:9':
-      return { width: even((short * 16) / 9), height: short };
-    case '9:16':
-      return { width: short, height: even((short * 16) / 9) };
-    case '1:1':
-      return { width: short, height: short };
-  }
+  return sizeForShortSide(aspect, short);
 }
 
 export function hasWebCodecs(): boolean {
