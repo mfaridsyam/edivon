@@ -25,15 +25,23 @@
   width: 100%;
   height: 100%;
 }
-.stage-frame:fullscreen {
-  display: grid;
-  place-items: center;
-  width: 100vw;
-  height: 100vh;
-  border: none;
-  border-radius: 0;
+/* Layar penuh: seluruh area pratinjau beserta baris kontrolnya, agar putar/jeda dan keluar tetap ada. */
+.stage-full {
+  background: var(--surface);
+}
+.stage-pseudo-full {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+}
+.stage-full .stage-viewport {
+  padding: 0;
   /* Latar layar penuh adalah isi video (letterbox), sama dengan latar kompositor. */
   background: #000000;
+}
+.stage-full .stage-frame {
+  border: none;
+  border-radius: 0;
 }
 
 /* Baris transport */

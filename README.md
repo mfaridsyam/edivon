@@ -63,6 +63,8 @@ Service worker dibuat saat build dari `src/sw-template.js`, dan menyimpan semua 
 - Usap timeline untuk menggulir. **Tekan-tahan** klip sebentar untuk memindahkannya, atau tekan-tahan ujungnya untuk memendekkan.
 - Cubit timeline dengan dua jari untuk zoom, atau pakai tombol **−** dan **+**.
 - Properti klip ada di laci **Properti** di bilah atas.
+- Halaman tidak ikut di-zoom dengan cubit atau ketuk dua kali, supaya terasa seperti aplikasi. Cubit di timeline hanya mengubah zoom timeline.
+- **Layar penuh** menampilkan pratinjau beserta tombol putar dan keluar. Di Android, video lanskap otomatis diputar mendatar. iPhone tidak punya layar penuh untuk halaman web, jadi pratinjau dibentangkan memenuhi layar.
 
 ## Batasan browser
 
@@ -72,6 +74,7 @@ Service worker dibuat saat build dari `src/sw-template.js`, dan menyimpan semua 
 - Ada berkas yang bisa diputar browser tetapi codec-nya tidak bisa didekode WebCodecs. Kartunya diberi keterangan "Belum bisa diekspor di browser ini".
 - Video H.265 (HEVC), yang umum dipakai kamera CCTV/DVR, butuh dekoder HEVC hardware. Di Windows, pakai Chrome atau Brave. Edge baru bisa setelah ekstensi HEVC Video Extensions dari Microsoft Store dipasang.
 - Banyak rekaman CCTV menyimpan parameter codec HEVC yang rusak. Klip tetap membacanya lewat dekoder toleran: parameter diperbaiki atau stream diubah ke Annex B. Karena `<video>` tidak bisa di-seek akurat untuk berkas seperti ini, gambar pratinjaunya juga didekode lewat WebCodecs supaya sama persis dengan hasil ekspor. Berkas sangat besar dengan indeks di akhir berkas butuh beberapa detik untuk tampil pertama kali.
+- Bitrate ekspor dihitung dari resolusi dan kualitas (1080p: sekitar 4, 6, atau 10 Mbps untuk Rendah, Sedang, dan Tinggi). Hasil tidak bisa lebih tajam dari sumbernya. Rekaman CCTV yang sudah sangat terkompresi tetap akan menampakkan blok dari kameranya.
 - Hasil ekspor disimpan di memori sampai diunduh. Video 4K yang panjang bisa memakan banyak memori.
 - Perubahan kecepatan juga mengubah pitch suara, baik di pratinjau maupun hasil ekspor.
 - Proyek tidak disimpan otomatis. Menutup atau memuat ulang tab akan menghapus timeline dan media yang sudah diimpor.

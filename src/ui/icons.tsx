@@ -205,6 +205,12 @@ export const IconFullscreen = (p: IconProps) => (
   </Icon>
 );
 
+export const IconFullscreenExit = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M9 4v5H4M15 4v5h5M15 20v-5h5M9 20v-5H4" />
+  </Icon>
+);
+
 export const IconPlay = (p: IconProps) => (
   <Icon {...p}>
     <path

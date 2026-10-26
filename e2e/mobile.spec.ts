@@ -55,3 +55,44 @@ test('bisa dipasang sebagai web app dan dibuka tanpa internet', async ({ page, c
   await expect(page.getByRole('button', { name: 'Ekspor', exact: true })).toBeVisible();
   await context.setOffline(false);
 });
+
+test.describe('layar penuh', () => {
+  test('di desktop memakai layar penuh browser dan tetap punya kontrol', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Layar penuh' }).click();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement?.classList.contains('stage') ?? false)).toBe(true);
+    await expect(page.getByRole('button', { name: 'Putar' })).toBeVisible();
+    await page.getByRole('button', { name: 'Keluar dari layar penuh' }).click();
+    await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+  });
+
+  test.describe('di ponsel tanpa API layar penuh (seperti iPhone)', () => {
+    test.use(pixel);
+
+    test('memakai mode cadangan yang menutupi layar', async ({ page }) => {
+      await page.addInitScript(() => {
+        const proto = Element.prototype as unknown as Record<string, unknown>;
+        delete proto.requestFullscreen;
+        delete proto.webkitRequestFullscreen;
+      });
+      await page.goto('/');
+      await page.getByRole('button', { name: 'Layar penuh' }).tap();
+      const stage = page.locator('.stage');
+      await expect(stage).toHaveClass(/stage-pseudo-full/);
+      const box = await stage.boundingBox();
+      const vp = page.viewportSize();
+      expect(box?.width).toBe(vp?.width);
+      expect(box?.height).toBe(vp?.height);
+      await page.getByRole('button', { name: 'Keluar dari layar penuh' }).tap();
+      await expect(stage).not.toHaveClass(/stage-pseudo-full/);
+    });
+  });
+});
+
+test('halaman tidak bisa di-zoom di ponsel', async ({ page }) => {
+  await page.goto('/');
+  const viewport = await page.locator('meta[name="viewport"]').getAttribute('content');
+  expect(viewport).toContain('maximum-scale=1');
+  expect(viewport).toContain('user-scalable=no');
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).touchAction)).toBe('pan-x pan-y');
+});

@@ -7,7 +7,16 @@ import { formatTimecode } from '../timeline/time';
 import { IconButton } from '../ui/Button';
 import { Segmented } from '../ui/Controls';
 import { Tooltip } from '../ui/Tooltip';
-import { IconFullscreen, IconPause, IconPlay, IconSkipEnd, IconSkipStart } from '../ui/icons';
+import { IconFullscreen, IconFullscreenExit, IconPause, IconPlay, IconSkipEnd, IconSkipStart } from '../ui/icons';
+import { COMPACT_QUERY, matches } from '../ui/useMediaQuery';
+import {
+  exitFullscreen,
+  fullscreenElement,
+  lockLandscape,
+  onFullscreenChange,
+  requestFullscreen,
+  unlockOrientation,
+} from './fullscreen';
 import { CropOverlay } from './CropOverlay';
 import { TransformOverlay } from './TransformOverlay';
 import './stage.css';
@@ -37,7 +46,7 @@ export function togglePlay(): void {
   s.setPlaying(!s.playing);
 }
 
-function Transport({ onFullscreen }: { onFullscreen: () => void }) {
+function Transport({ onFullscreen, fullscreen }: { onFullscreen: () => void; fullscreen: boolean }) {
   const playing = useEditor((s) => s.playing);
   const aspect = useEditor((s) => s.project.aspect);
   const apply = useEditor((s) => s.apply);
@@ -71,8 +80,8 @@ function Transport({ onFullscreen }: { onFullscreen: () => void }) {
           value={aspect}
           onChange={(value) => apply((p) => ({ ...p, aspect: value }))}
         />
-        <IconButton label="Layar penuh" onClick={onFullscreen}>
-          <IconFullscreen />
+        <IconButton label={fullscreen ? 'Keluar dari layar penuh' : 'Layar penuh'} onClick={onFullscreen}>
+          {fullscreen ? <IconFullscreenExit /> : <IconFullscreen />}
         </IconButton>
       </div>
     </div>
@@ -81,12 +90,15 @@ function Transport({ onFullscreen }: { onFullscreen: () => void }) {
 
 export function Stage() {
   const aspect = useEditor((s) => s.project.aspect);
+  const stageRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<PreviewEngine | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
-  const [fullscreen, setFullscreen] = useState(false);
+  /** 'native' = API layar penuh browser; 'pseudo' = menutupi seluruh jendela (iPhone tidak punya API-nya). */
+  const [fullMode, setFullMode] = useState<'none' | 'native' | 'pseudo'>('none');
+  const fullscreen = fullMode !== 'none';
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -107,63 +119,87 @@ export function Stage() {
     const { width: rw, height: rh } = frameSize(aspect);
     const ratio = rw / rh;
     const measure = () => {
-      const isFull = document.fullscreenElement === frameRef.current;
-      const availW = isFull ? window.innerWidth : viewport.clientWidth - STAGE_PAD * 2;
-      const availH = isFull ? window.innerHeight : viewport.clientHeight - STAGE_PAD * 2;
+      const pad = fullscreen ? 0 : STAGE_PAD * 2;
+      const availW = viewport.clientWidth - pad;
+      const availH = viewport.clientHeight - pad;
       let w = Math.min(availW, availH * ratio);
-      if (!isFull) w = Math.min(w, MAX_FRAME_W);
+      if (!fullscreen) w = Math.min(w, MAX_FRAME_W);
       w = Math.max(0, Math.floor(w));
       setBox({ w, h: Math.floor(w / ratio) });
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(viewport);
-    document.addEventListener('fullscreenchange', measure);
-    return () => {
-      ro.disconnect();
-      document.removeEventListener('fullscreenchange', measure);
-    };
-  }, [aspect]);
+    return () => ro.disconnect();
+  }, [aspect, fullscreen]);
 
   useEffect(() => {
     const dpr = window.devicePixelRatio || 1;
     engineRef.current?.resize(box.w * dpr, box.h * dpr);
   }, [box]);
 
-  useEffect(() => {
-    const onChange = () => setFullscreen(document.fullscreenElement === frameRef.current);
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
+  useEffect(
+    () =>
+      onFullscreenChange(() => {
+        const native = fullscreenElement() === stageRef.current;
+        setFullMode((m) => (native ? 'native' : m === 'native' ? 'none' : m));
+        if (!native) unlockOrientation();
+      }),
+    [],
+  );
 
-  const toggleFullscreen = () => {
-    const frame = frameRef.current;
-    if (!frame) return;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void frame.requestFullscreen?.().catch(() => {});
+  // Mode cadangan tidak punya Esc bawaan browser.
+  useEffect(() => {
+    if (fullMode !== 'pseudo') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullMode('none');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullMode]);
+
+  const toggleFullscreen = async () => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    if (fullMode === 'pseudo') {
+      setFullMode('none');
+      return;
+    }
+    if (fullMode === 'native' || fullscreenElement()) {
+      await exitFullscreen();
+      return;
+    }
+    if (await requestFullscreen(stage)) {
+      const { width: w, height: h } = frameSize(aspect);
+      if (w > h && matches(COMPACT_QUERY)) lockLandscape();
+      return;
+    }
+    setFullMode('pseudo');
   };
 
   return (
-    <div className="stage">
+    <div
+      ref={stageRef}
+      className={['stage', fullscreen && 'stage-full', fullMode === 'pseudo' && 'stage-pseudo-full'].filter(Boolean).join(' ')}
+    >
       <div ref={viewportRef} className="stage-viewport">
         <div
           ref={frameRef}
           className="stage-frame"
-          style={fullscreen ? undefined : { width: box.w, height: box.h }}
-          onDoubleClick={toggleFullscreen}
+          style={{ width: box.w, height: box.h }}
+          onDoubleClick={() => void toggleFullscreen()}
         >
           <canvas
             ref={canvasRef}
             className="stage-canvas"
             role="img"
             aria-label={`Pratinjau video, rasio ${aspect}`}
-            style={fullscreen ? { width: box.w, height: box.h } : undefined}
           />
           {!fullscreen && <TransformOverlay width={box.w} height={box.h} />}
           {!fullscreen && <CropOverlay width={box.w} height={box.h} />}
         </div>
       </div>
-      <Transport onFullscreen={toggleFullscreen} />
+      <Transport onFullscreen={() => void toggleFullscreen()} fullscreen={fullscreen} />
     </div>
   );
 }
