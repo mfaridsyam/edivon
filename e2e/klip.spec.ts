@@ -84,8 +84,8 @@ test('impor dua berkas, belah, urutkan, lalu ekspor', async ({ page }, testInfo)
   // Ekspor
   await page.getByRole('button', { name: 'Ekspor', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Ekspor video' });
-  await expect(dialog.getByRole('radio', { name: '720p' })).toBeEnabled();
-  await dialog.getByRole('radio', { name: '720p' }).click();
+  await expect(dialog.getByRole('radio', { name: '720p', exact: true })).toBeEnabled();
+  await dialog.getByRole('radio', { name: '720p', exact: true }).click();
   const downloadPromise = page.waitForEvent('download');
   await dialog.getByRole('button', { name: 'Ekspor' }).click();
   await expect(page.getByRole('progressbar', { name: 'Progres ekspor' })).toBeVisible();

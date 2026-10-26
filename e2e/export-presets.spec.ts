@@ -39,15 +39,28 @@ async function probe(path: string) {
   };
 }
 
-test('Status WhatsApp: rasio proyek diubah ke 9:16 lalu ekspor 720x1280 H.264 + AAC', async ({ page }, testInfo) => {
+test('Story & Reels tidak wajib 9:16: proyek 16:9 diekspor 1920x1080', async ({ page }, testInfo) => {
+  await addClip(page);
+  await page.getByRole('button', { name: 'Ekspor', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ekspor video' });
+  await dialog.getByRole('radio', { name: /Story & Reels Instagram/ }).click();
+  await expect(dialog.getByRole('radio', { name: 'Proyek 16:9' })).toHaveAttribute('aria-checked', 'true');
+  await expect(dialog).toContainText('1920×1080');
+  await expect(dialog).toContainText('menerima rasio 16:9');
+  const path = testInfo.outputPath('story.mp4');
+  await exportWith(page, 'Story & Reels Instagram', path);
+  expect(await probe(path)).toMatchObject({ width: 1920, height: 1080, video: 'avc', audio: 'aac' });
+});
+
+test('Status WhatsApp penuh layar: rasio proyek diubah ke 9:16 lalu ekspor 720x1280', async ({ page }, testInfo) => {
   await addClip(page);
   await page.getByRole('button', { name: 'Ekspor', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Ekspor video' });
   await dialog.getByRole('radio', { name: /Status WhatsApp/ }).click();
+  await dialog.getByRole('radio', { name: '9:16 penuh layar' }).click();
   await expect(dialog).toContainText('720×1280');
-  await expect(dialog).toContainText('Proyekmu berasio 16:9');
   await dialog.getByRole('button', { name: 'Ubah rasio proyek ke 9:16' }).click();
-  await expect(dialog).not.toContainText('Proyekmu berasio');
+  await expect(dialog.getByRole('radio', { name: '9:16 penuh layar' })).toHaveCount(0);
   await expect(page.getByRole('radio', { name: '9:16', exact: true })).toHaveAttribute('aria-checked', 'true');
 
   const path = testInfo.outputPath('status-wa.mp4');
@@ -57,9 +70,12 @@ test('Status WhatsApp: rasio proyek diubah ke 9:16 lalu ekspor 720x1280 H.264 + 
   expect(info.duration).toBeGreaterThan(3.9);
 });
 
-test('Feed Instagram tanpa mengubah rasio: proyek 16:9 utuh di tengah bingkai 1080x1350', async ({ page }, testInfo) => {
+test('Feed Instagram 4:5 penuh layar tanpa mengubah rasio: proyek 16:9 utuh di tengah bingkai 1080x1350', async ({ page }, testInfo) => {
   await addClip(page);
   await page.getByRole('button', { name: 'Ekspor', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ekspor video' });
+  await dialog.getByRole('radio', { name: /Feed Instagram/ }).click();
+  await dialog.getByRole('radio', { name: '4:5 penuh layar' }).click();
   const path = testInfo.outputPath('feed-ig.mp4');
   await exportWith(page, 'Feed Instagram', path);
   expect(await probe(path)).toMatchObject({ width: 1080, height: 1350, video: 'avc' });

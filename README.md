@@ -12,7 +12,7 @@ Editor video yang berjalan sepenuhnya di browser. Tidak ada server dan tidak ada
 - Properti klip: skala, posisi, rotasi, opasitas, kecepatan (0,5× sampai 4×), kecerahan, kontras, saturasi, volume, dan tombol **Setel ulang**.
 - Klip video, gambar, dan teks bisa dipilih langsung di pratinjau. Seret untuk memindahkannya (menempel ke garis tengah), atau tarik sudutnya untuk mengubah skala.
 - Pratinjau dengan rasio 16:9, 4:3, 1:1, 4:5, 3:4, atau 9:16, plus timecode dan layar penuh.
-- Preset ekspor untuk media sosial: Status WhatsApp (720×1280), Feed Instagram (1080×1350, 4:5), serta Story & Reels Instagram (1080×1920). Semuanya MP4 H.264 + AAC 30 fps. Bila rasio proyek berbeda dari tujuan, Klip menawarkan untuk mengubahnya; kalau tidak diubah, video ditaruh utuh di tengah dengan latar hitam.
+- Preset ekspor untuk media sosial: Status WhatsApp, Feed Instagram, serta Story & Reels Instagram. Semuanya MP4 H.264 + AAC 30 fps dengan bitrate yang cocok untuk aplikasinya. Rasio tidak dipaksakan: bawaannya mengikuti rasio proyek, dengan pilihan "penuh layar" (9:16 atau 4:5) dan resolusi 720p atau 1080p. Feed Instagram memotong video yang lebih tegak dari 4:5, jadi proyek seperti itu diberi latar hitam di bingkai 4:5.
 - Ekspor ke MP4 (H.264 + AAC) atau WebM (VP9 + Opus) dalam 720p, 1080p, atau 4K bila browser mendukung. Sebelum mulai, dialog menampilkan perkiraan ukuran berkas. Selama ekspor, progres dan estimasi sisa waktu ditampilkan, dan ekspor bisa dibatalkan.
 - Undo/redo dan pintasan keyboard untuk semua alat.
 

@@ -87,12 +87,12 @@ test('dialog ekspor menampilkan perkiraan ukuran', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Ekspor', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Ekspor video' });
-  await dialog.getByRole('radio', { name: '720p' }).click();
+  await dialog.getByRole('radio', { name: '720p', exact: true }).click();
   const estimate = dialog.getByText(/Perkiraan ukuran/);
   await expect(estimate).toContainText(/±\d/);
   const small = await estimate.innerText();
-  await dialog.getByRole('radio', { name: '1080p' }).click();
+  await dialog.getByRole('radio', { name: '1080p', exact: true }).click();
   await expect(estimate).not.toHaveText(small);
-  await dialog.getByRole('radio', { name: 'Tinggi' }).click();
+  await dialog.getByRole('radio', { name: 'Tinggi', exact: true }).click();
   await expect(estimate).toContainText(/±[\d,]+ (KB|MB)/);
 });

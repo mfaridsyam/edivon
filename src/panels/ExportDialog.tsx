@@ -1,10 +1,18 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useUi } from '../app/uiState';
 import { bytesFor, estimateBytes, projectHasAudio } from '../export/estimate';
-import { SOCIAL_PRESETS, letterbox, presetById, type DestinationId } from '../export/presets';
+import {
+  SOCIAL_PRESETS,
+  presetById,
+  presetPlan,
+  projectAspectAllowed,
+  type DestinationId,
+  type PresetFit,
+  type PresetResolution,
+} from '../export/presets';
 import { downloadBlob, startExport, type ExportJob } from '../export/exporter';
 import { CODECS, type ExportFormat, type ExportQuality, type ExportResolution } from '../export/protocol';
-import { detectPresetSupport, detectSupport, hasWebCodecs, outputSize, type FormatSupport } from '../export/support';
+import { detectSocialSupport, detectSupport, hasWebCodecs, outputSize, type FormatSupport } from '../export/support';
 import { editor, useEditor } from '../state/store';
 import { projectDuration, type Aspect } from '../timeline/model';
 import { FPS, formatTimecode } from '../timeline/time';
@@ -58,7 +66,7 @@ function formatMbps(bps: number): string {
 
 const DESTINATIONS: readonly { id: DestinationId; label: string; detail: string }[] = [
   { id: 'custom', label: 'Umum', detail: 'Atur format, resolusi, kualitas' },
-  ...SOCIAL_PRESETS.map((p) => ({ id: p.id, label: p.label, detail: `${p.width}×${p.height} · ${p.aspect}` })),
+  ...SOCIAL_PRESETS.map((p) => ({ id: p.id, label: p.label, detail: p.summary })),
 ];
 
 /** Kartu pilihan tujuan ekspor (role="radiogroup"), panah untuk berpindah. */
@@ -69,10 +77,10 @@ function DestinationPicker({
 }: {
   value: DestinationId;
   onChange: (id: DestinationId) => void;
-  available: ReadonlySet<string>;
+  available: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const enabled = DESTINATIONS.filter((d) => d.id === 'custom' || available.has(d.id));
+  const enabled = DESTINATIONS.filter((d) => d.id === 'custom' || available);
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const i = enabled.findIndex((d) => d.id === value);
     let next: number | null = null;
@@ -88,7 +96,7 @@ function DestinationPicker({
   return (
     <div ref={ref} className="export-dest" role="radiogroup" aria-label="Tujuan" onKeyDown={onKeyDown}>
       {DESTINATIONS.map((d) => {
-        const ok = d.id === 'custom' || available.has(d.id);
+        const ok = d.id === 'custom' || available;
         return (
           <button
             key={d.id}
@@ -125,7 +133,10 @@ export function ExportDialog() {
   const [resolution, setResolution] = useState<ExportResolution>(1080);
   const [quality, setQuality] = useState<ExportQuality>('medium');
   const [destination, setDestination] = useState<DestinationId>('custom');
-  const [presetOk, setPresetOk] = useState<ReadonlySet<string>>(new Set());
+  /** Resolusi (sisi pendek) yang didukung untuk preset media sosial; kosong bila MP4 tidak didukung. */
+  const [socialRes, setSocialRes] = useState<PresetResolution[]>([]);
+  const [fit, setFit] = useState<PresetFit>('project');
+  const [presetRes, setPresetRes] = useState<PresetResolution>(1080);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [now, setNow] = useState(() => performance.now());
   const job = useRef<ExportJob | null>(null);
@@ -142,15 +153,15 @@ export function ExportDialog() {
     }
     setPhase({ kind: 'checking' });
     let alive = true;
-    void Promise.all([detectSupport(aspect), detectPresetSupport(SOCIAL_PRESETS)]).then(([result, presets]) => {
+    void Promise.all([detectSupport(aspect), detectSocialSupport()]).then(([result, social]) => {
       if (!alive) return;
       setSupport(result);
-      setPresetOk(presets);
+      setSocialRes(social);
       if (result.length === 0) {
         setPhase({ kind: 'unsupported' });
         return;
       }
-      setDestination((d) => (d === 'custom' || presets.has(d) ? d : 'custom'));
+      setDestination((d) => (d === 'custom' || social.length > 0 ? d : 'custom'));
       const fmt = result.find((r) => r.format === format) ?? result[0];
       if (fmt) {
         setFormat(fmt.format);
@@ -188,12 +199,20 @@ export function ExportDialog() {
 
   const current = support.find((s) => s.format === format);
   const preset = presetById(destination);
-  const size = preset ? { width: preset.width, height: preset.height } : outputSize(aspect, resolution);
+  const plan = preset ? presetPlan(preset, aspect, fit, socialRes.includes(presetRes) ? presetRes : (socialRes[0] ?? 720)) : null;
+  const size = plan ? { width: plan.width, height: plan.height } : outputSize(aspect, resolution);
   const outFormat: ExportFormat = preset ? 'mp4' : format;
   const seconds = duration / FPS;
-  const estimate = preset
-    ? bytesFor(preset.videoBitrate + (withAudio ? preset.audioBitrate : 0), seconds)
-    : estimateBytes({ format, ...size, quality, seconds, withAudio });
+  const estimate =
+    preset && plan
+      ? bytesFor(plan.videoBitrate + (withAudio ? preset.audioBitrate : 0), seconds)
+      : estimateBytes({ format, ...size, quality, seconds, withAudio });
+
+  const chooseDestination = (id: DestinationId) => {
+    setDestination(id);
+    const p = presetById(id);
+    if (p) setPresetRes(p.short);
+  };
 
   const changeAspect = (next: Aspect) => {
     const s = editor.get();
@@ -212,16 +231,16 @@ export function ExportDialog() {
     job.current = startExport(
       s.project,
       s.media,
-      preset
+      preset && plan
         ? {
             format: 'mp4',
-            width: preset.width,
-            height: preset.height,
+            width: plan.width,
+            height: plan.height,
             fps: FPS,
             quality: 'high',
-            videoBitrate: preset.videoBitrate,
+            videoBitrate: plan.videoBitrate,
             audioBitrate: preset.audioBitrate,
-            inner: letterbox(s.project.aspect, preset.width, preset.height) ?? undefined,
+            inner: plan.inner ?? undefined,
           }
         : { format, width: size.width, height: size.height, fps: FPS, quality },
       {
@@ -297,24 +316,62 @@ export function ExportDialog() {
           </div>
           <div className="export-name">
             <span className="field-label">Tujuan</span>
-            <DestinationPicker value={destination} onChange={setDestination} available={presetOk} />
+            <DestinationPicker value={destination} onChange={chooseDestination} available={socialRes.length > 0} />
           </div>
-          {preset ? (
+          {preset && plan ? (
             <div className="export-preset">
+              {aspect !== preset.aspect &&
+                (projectAspectAllowed(preset, aspect) ? (
+                  <Field label="Rasio">
+                    {() => (
+                      <Segmented
+                        label="Rasio"
+                        options={[
+                          { value: 'project', label: `Proyek ${aspect}` },
+                          { value: 'fill', label: `${preset.aspect} penuh layar` },
+                        ]}
+                        value={fit}
+                        onChange={setFit}
+                      />
+                    )}
+                  </Field>
+                ) : null)}
+              <Field label="Resolusi">
+                {() => (
+                  <Segmented
+                    label="Resolusi"
+                    mono
+                    options={([720, 1080] as const).map((r) => ({
+                      value: r,
+                      label: `${r}p`,
+                      disabled: !socialRes.includes(r),
+                    }))}
+                    value={socialRes.includes(presetRes) ? presetRes : (socialRes[0] ?? 720)}
+                    onChange={setPresetRes}
+                  />
+                )}
+              </Field>
               <p className="t-tick">
-                MP4 (H.264 + AAC) · {preset.width}×{preset.height} · {FPS} fps · {formatMbps(preset.videoBitrate)} ·{' '}
+                MP4 (H.264 + AAC) · {plan.width}×{plan.height} · {FPS} fps · {formatMbps(plan.videoBitrate)} ·{' '}
                 {formatTimecode(duration)}
               </p>
-              <p className="t-caption">{preset.note}</p>
-              {aspect !== preset.aspect && (
+              {aspect !== preset.aspect && plan.fit === 'project' && (
+                <p className="t-caption">
+                  {preset.label} menerima rasio {aspect}. Di layar HP yang tegak, video tampil utuh dengan tepi kosong.
+                </p>
+              )}
+              {plan.fit === 'fill' && (
                 <div className="export-notice" role="note">
                   <p className="t-body">
-                    Proyekmu berasio {aspect}, sedangkan {preset.label} memakai {preset.aspect}. Tanpa diubah, videomu
-                    ditaruh utuh di tengah dengan latar hitam.
+                    {projectAspectAllowed(preset, aspect)
+                      ? `Videomu ditaruh utuh di bingkai ${preset.aspect} dengan latar hitam.`
+                      : `${preset.label} memotong video yang lebih tegak dari ${preset.aspect}, jadi videomu ditaruh utuh di bingkai ${preset.aspect} dengan latar hitam.`}{' '}
+                    Ubah rasio proyek bila ingin mengatur sendiri isinya.
                   </p>
                   <Button onClick={() => changeAspect(preset.aspect)}>Ubah rasio proyek ke {preset.aspect}</Button>
                 </div>
               )}
+              <p className="t-caption">{preset.note}</p>
               {preset.maxSeconds !== undefined && seconds > preset.maxSeconds && (
                 <p className="t-caption">
                   Durasi {formatTimecode(duration)} lebih dari {preset.maxSeconds} detik. {preset.label} biasanya
