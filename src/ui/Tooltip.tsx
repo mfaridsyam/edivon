@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
   type FocusEvent,
-  type MouseEvent,
   type PointerEvent,
   type ReactElement,
 } from 'react';
@@ -20,8 +19,8 @@ interface TooltipProps {
 }
 
 interface TooltipChildProps {
-  onMouseEnter?: (e: MouseEvent<HTMLElement>) => void;
-  onMouseLeave?: (e: MouseEvent<HTMLElement>) => void;
+  onPointerEnter?: (e: PointerEvent<HTMLElement>) => void;
+  onPointerLeave?: (e: PointerEvent<HTMLElement>) => void;
   onFocus?: (e: FocusEvent<HTMLElement>) => void;
   onBlur?: (e: FocusEvent<HTMLElement>) => void;
   onPointerDown?: (e: PointerEvent<HTMLElement>) => void;
@@ -77,14 +76,16 @@ export function Tooltip({ content, shortcut, placement = 'top', children }: Tool
 
   const props = children.props;
   const trigger = cloneElement(children, {
-    onMouseEnter: (e: MouseEvent<HTMLElement>) => {
-      props.onMouseEnter?.(e);
+    onPointerEnter: (e: PointerEvent<HTMLElement>) => {
+      props.onPointerEnter?.(e);
+      // Hanya untuk mouse: di layar sentuh ketukan juga memicu "enter" dan tooltip akan tertinggal.
+      if (e.pointerType !== 'mouse') return;
       const el = e.currentTarget;
       window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => setAnchor(el.getBoundingClientRect()), SHOW_DELAY);
     },
-    onMouseLeave: (e: MouseEvent<HTMLElement>) => {
-      props.onMouseLeave?.(e);
+    onPointerLeave: (e: PointerEvent<HTMLElement>) => {
+      props.onPointerLeave?.(e);
       hide();
     },
     onFocus: (e: FocusEvent<HTMLElement>) => {

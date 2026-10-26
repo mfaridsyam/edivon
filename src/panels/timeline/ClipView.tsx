@@ -13,7 +13,18 @@ import { moveClip, nudgeClip, trimEnd, trimStart } from '../../timeline/ops';
 import { snapDelta, snapTargets, snapThreshold } from '../../timeline/snap';
 import { FPS, formatTimecode, spokenDuration } from '../../timeline/time';
 import { IconEffect, IconFilm, IconImage, IconMusic, IconText } from '../../ui/icons';
-import { DRAG_THRESHOLD, EDGE_PX, ROW_GAP, TRACK_H, frameToX, useTimelineUi, xToFrame } from './geometry';
+import {
+  DRAG_THRESHOLD,
+  EDGE_PX,
+  EDGE_PX_TOUCH,
+  LONG_PRESS_MS,
+  ROW_GAP,
+  TOUCH_SLOP,
+  TRACK_H,
+  frameToX,
+  useTimelineUi,
+  xToFrame,
+} from './geometry';
 import { clipToolAction } from './clipTools';
 
 type DragMode = 'move' | 'trim-start' | 'trim-end';
@@ -64,8 +75,19 @@ function rowAtY(el: HTMLElement, clientY: number): number {
   return Math.floor((clientY - top) / (TRACK_H + ROW_GAP));
 }
 
+/** Tekan-tahan di layar sentuh: geser cepat menggulir timeline, tahan dulu untuk memindahkan klip. */
+interface PendingTouch {
+  pointerId: number;
+  x: number;
+  y: number;
+  ox: number;
+  width: number;
+  timer: number;
+}
+
 export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoom, trackIds }: ClipViewProps) {
   const drag = useRef<DragState | null>(null);
+  const pending = useRef<PendingTouch | null>(null);
   const elRef = useRef<HTMLDivElement>(null);
 
   const left = frameToX(clip.start, zoom);
@@ -84,8 +106,45 @@ export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoo
       elRef.current?.releasePointerCapture(d.pointerId);
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Saat klip sedang diseret dengan jari, cegah browser menggulir halaman/timeline.
+    const el = elRef.current;
+    const onTouchMove = (e: TouchEvent) => {
+      if (drag.current) e.preventDefault();
+    };
+    el?.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      el?.removeEventListener('touchmove', onTouchMove);
+      if (pending.current) window.clearTimeout(pending.current.timer);
+    };
   }, []);
+
+  /** Mulai menyeret: menentukan mode dari posisi pointer di dalam klip. */
+  const beginDrag = (el: HTMLElement, pointerId: number, x: number, y: number, ox: number, width: number, edge: number) => {
+    let mode: DragMode = 'move';
+    if (ox <= edge && width > edge * 3) mode = 'trim-start';
+    else if (width - ox <= edge && width > edge * 3) mode = 'trim-end';
+    try {
+      el.setPointerCapture(pointerId);
+    } catch {
+      return;
+    }
+    drag.current = {
+      mode,
+      pointerId,
+      startX: x,
+      startY: y,
+      moved: false,
+      origStart: clip.start,
+      origEnd: clipEnd(clip),
+      origTrackId: clip.trackId,
+    };
+  };
+
+  const clearPending = () => {
+    if (pending.current) window.clearTimeout(pending.current.timer);
+    pending.current = null;
+  };
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -106,24 +165,33 @@ export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoo
     else if (!selected) selectClip(clip.id);
     if (s.tool === 'crop') return;
 
-    let mode: DragMode = 'move';
-    if (ox <= EDGE_PX && rect.width > EDGE_PX * 3) mode = 'trim-start';
-    else if (rect.width - ox <= EDGE_PX && rect.width > EDGE_PX * 3) mode = 'trim-end';
-
-    el.setPointerCapture(e.pointerId);
-    drag.current = {
-      mode,
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      moved: false,
-      origStart: clip.start,
-      origEnd: clipEnd(clip),
-      origTrackId: clip.trackId,
-    };
+    if (e.pointerType === 'touch') {
+      // Jari: tunggu tekan-tahan sebelum menyeret, agar usapan tetap menggulir timeline.
+      clearPending();
+      const { pointerId, clientX, clientY } = e;
+      const width = rect.width;
+      pending.current = {
+        pointerId,
+        x: clientX,
+        y: clientY,
+        ox,
+        width,
+        timer: window.setTimeout(() => {
+          const p = pending.current;
+          pending.current = null;
+          if (!p || !elRef.current) return;
+          beginDrag(elRef.current, p.pointerId, p.x, p.y, p.ox, p.width, EDGE_PX_TOUCH);
+          if (drag.current) navigator.vibrate?.(12);
+        }, LONG_PRESS_MS),
+      };
+      return;
+    }
+    beginDrag(el, e.pointerId, e.clientX, e.clientY, ox, rect.width, EDGE_PX);
   };
 
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    const p = pending.current;
+    if (p && p.pointerId === e.pointerId && Math.hypot(e.clientX - p.x, e.clientY - p.y) > TOUCH_SLOP) clearPending();
     const d = drag.current;
     if (d && e.pointerId === d.pointerId) {
       if (!d.moved) {
@@ -166,6 +234,7 @@ export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoo
   };
 
   const finish = (e: PointerEvent<HTMLDivElement>, commit: boolean) => {
+    if (pending.current?.pointerId === e.pointerId) clearPending();
     const d = drag.current;
     if (!d || e.pointerId !== d.pointerId) return;
     drag.current = null;
@@ -228,6 +297,10 @@ export const ClipView = memo(function ClipView({ clip, trackIndex, selected, zoo
       onPointerUp={(e) => finish(e, true)}
       onPointerCancel={(e) => finish(e, false)}
       onLostPointerCapture={(e) => finish(e, true)}
+      onContextMenu={(e) => {
+        // Tekan-tahan di HP membuka menu konteks; di sini tekan-tahan dipakai untuk menyeret.
+        if (pending.current || drag.current) e.preventDefault();
+      }}
       onKeyDown={onKeyDown}
     >
       <span className="clip-handle clip-handle-start" aria-hidden="true" />

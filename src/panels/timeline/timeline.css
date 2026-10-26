@@ -14,14 +14,20 @@
   height: 54px;
   padding: 0 var(--space-3);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
 }
+/* Alat bisa digulir sendiri di layar sempit; zoom di kanan tetap terlihat. */
 .toolbar-tools {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 4px 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 -4px;
+  padding: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 .toolbar-sep {
   flex: none;
@@ -46,6 +52,8 @@
   min-height: 0;
   overflow: auto;
   background: var(--surface);
+  /* Satu jari menggulir; cubit dua jari ditangani sendiri untuk zoom timeline. */
+  touch-action: pan-x pan-y;
 }
 .tl-content {
   position: relative;
@@ -212,7 +220,8 @@
   white-space: nowrap;
   cursor: grab;
   user-select: none;
-  touch-action: none;
+  touch-action: pan-x pan-y;
+  -webkit-touch-callout: none;
   pointer-events: auto;
 }
 .clip > svg {
@@ -324,4 +333,39 @@
 /* Saat media diseret dari panel, klip tidak menghalangi lajur di bawahnya */
 .klip-dragging .clip {
   pointer-events: none;
+}
+
+/* ---------- Ponsel ---------- */
+@media (max-width: 639.98px) {
+  .timeline {
+    --track-head-w: 76px;
+  }
+  .toolbar {
+    gap: var(--space-2);
+    padding: 0 var(--space-2);
+  }
+  /* Zoom cukup tombol perkecil/perbesar; cubit dua jari juga bisa. */
+  .toolbar-zoom {
+    width: auto;
+  }
+  .toolbar-zoom .slider {
+    display: none;
+  }
+  .tl-corner {
+    justify-content: flex-end;
+    padding: 0 2px;
+  }
+  .tl-corner .t-caption {
+    display: none;
+  }
+  /* Nama lajur di atas tombol mata/volume agar kolom kepala ramping. */
+  .tl-head {
+    flex-wrap: wrap;
+    align-content: center;
+    column-gap: 2px;
+    padding: 2px 4px 2px 6px;
+  }
+  .tl-head-name {
+    flex: 1 0 100%;
+  }
 }

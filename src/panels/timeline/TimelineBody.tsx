@@ -17,7 +17,9 @@ import {
   IconVolumeOff,
 } from '../../ui/icons';
 import { ClipView } from './ClipView';
-import { HEAD_W, ROW_GAP, TRACK_H, frameToX, useTimelineUi, xToFrame } from './geometry';
+import { HEAD_W, HEAD_W_COMPACT, ROW_GAP, TRACK_H, frameToX, useHeadWidth, useTimelineUi, xToFrame } from './geometry';
+import { COARSE_QUERY, COMPACT_QUERY, matches, useMediaQuery } from '../../ui/useMediaQuery';
+import { ZOOM_MAX, ZOOM_MIN } from '../../state/store';
 import { laneDropHandlers, onLanePointerDown } from './laneEvents';
 import { Ruler } from './Ruler';
 
@@ -60,18 +62,18 @@ function TrackHead({ track }: { track: Track }) {
   );
 }
 
-function PlayheadLine({ zoom }: { zoom: number }) {
+function PlayheadLine({ zoom, headW }: { zoom: number; headW: number }) {
   const playhead = useEditor((s) => s.playhead);
   return (
     <div
       className="tl-playhead-line"
-      style={{ transform: `translateX(${HEAD_W + frameToX(playhead, zoom)}px)` }}
+      style={{ transform: `translateX(${headW + frameToX(playhead, zoom)}px)` }}
       aria-hidden="true"
     />
   );
 }
 
-function Guides({ zoom, tracks }: { zoom: number; tracks: readonly Track[] }) {
+function Guides({ zoom, tracks, headW }: { zoom: number; tracks: readonly Track[]; headW: number }) {
   const snapFrame = useTimelineUi((s) => s.snapFrame);
   const ghost = useTimelineUi((s) => s.dropGhost);
   const ghostRow = ghost ? tracks.findIndex((t) => t.id === ghost.trackId) : -1;
@@ -80,7 +82,7 @@ function Guides({ zoom, tracks }: { zoom: number; tracks: readonly Track[] }) {
       {snapFrame !== null && (
         <div
           className="tl-guide tl-guide-snap"
-          style={{ transform: `translateX(${HEAD_W + frameToX(snapFrame, zoom)}px)` }}
+          style={{ transform: `translateX(${headW + frameToX(snapFrame, zoom)}px)` }}
           aria-hidden="true"
         />
       )}
@@ -88,7 +90,7 @@ function Guides({ zoom, tracks }: { zoom: number; tracks: readonly Track[] }) {
         <div
           className="tl-ghost"
           style={{
-            left: HEAD_W + frameToX(ghost.start, zoom),
+            left: headW + frameToX(ghost.start, zoom),
             width: Math.max(2, frameToX(ghost.duration, zoom)),
             top: 28 + ghostRow * (TRACK_H + ROW_GAP) + ROW_GAP + 4,
           }}
@@ -108,10 +110,14 @@ export function TimelineBody() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ scrollLeft: 0, width: 960 });
   const prevZoom = useRef(zoom);
+  /** Posisi gulir yang diminta cubitan dua jari; dipakai menggantikan penahan playhead saat zoom. */
+  const pinchScroll = useRef<number | null>(null);
+  const headW = useHeadWidth();
+  const coarse = useMediaQuery(COARSE_QUERY);
 
   const laneWidth = Math.max(
-    view.width - HEAD_W,
-    frameToX(duration, zoom) + Math.max(240, (view.width - HEAD_W) * 0.5),
+    view.width - headW,
+    frameToX(duration, zoom) + Math.max(240, (view.width - headW) * 0.5),
   );
 
   const trackIds = useMemo(() => tracks.map((t) => t.id), [tracks]);
@@ -144,6 +150,11 @@ export function TimelineBody() {
     const old = prevZoom.current;
     prevZoom.current = zoom;
     if (!el || old === zoom) return;
+    if (pinchScroll.current !== null) {
+      el.scrollLeft = Math.max(0, pinchScroll.current);
+      pinchScroll.current = null;
+      return;
+    }
     const seconds = editor.get().playhead / FPS;
     const onScreen = seconds * old - el.scrollLeft;
     el.scrollLeft = Math.max(0, seconds * zoom - onScreen);
@@ -156,12 +167,70 @@ export function TimelineBody() {
       const el = scrollRef.current;
       if (!el || !s.playing) return;
       const x = frameToX(s.playhead, s.zoom);
-      const visible = el.clientWidth - HEAD_W;
+      const visible = el.clientWidth - (matches(COMPACT_QUERY) ? HEAD_W_COMPACT : HEAD_W);
       if (x < el.scrollLeft || x > el.scrollLeft + visible - 24) {
         el.scrollLeft = Math.max(0, x - 24);
       }
     });
   }, []);
+
+  // Di ponsel, klip pertama langsung terlihat utuh: zoom menyesuaikan durasi proyek.
+  useEffect(() => {
+    return editor.subscribe((s, prev) => {
+      if (s.project === prev.project || !matches(COMPACT_QUERY)) return;
+      const before = projectDuration(prev.project);
+      const after = projectDuration(s.project);
+      const el = scrollRef.current;
+      if (before !== 0 || after === 0 || !el) return;
+      const visible = el.clientWidth - (matches(COMPACT_QUERY) ? HEAD_W_COMPACT : HEAD_W) - 24;
+      const fit = visible / (after / FPS);
+      s.setZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, fit)));
+    });
+  }, []);
+
+  // Cubit dua jari untuk zoom timeline; waktu di antara kedua jari tetap di tempatnya.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let pinch: { dist: number; zoom: number; time: number; x: number } | null = null;
+    const geometry = (t: TouchList) => {
+      const a = t[0];
+      const b = t[1];
+      if (!a || !b) return null;
+      const rect = el.getBoundingClientRect();
+      return { dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), mid: (a.clientX + b.clientX) / 2 - rect.left };
+    };
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      const g = geometry(e.touches);
+      if (!g || g.dist < 10) return;
+      const z = editor.get().zoom;
+      const x = g.mid - headW;
+      pinch = { dist: g.dist, zoom: z, time: (el.scrollLeft + x) / z, x };
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!pinch || e.touches.length !== 2) return;
+      const g = geometry(e.touches);
+      if (!g) return;
+      e.preventDefault();
+      const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, pinch.zoom * (g.dist / pinch.dist)));
+      pinchScroll.current = pinch.time * z - pinch.x;
+      editor.get().setZoom(z);
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinch = null;
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    el.addEventListener('touchcancel', onEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+    };
+  }, [headW]);
 
   const onEmptyPointerDown = (e: PointerEvent<HTMLDivElement>, track: Track) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -170,7 +239,7 @@ export function TimelineBody() {
 
   return (
     <div ref={scrollRef} className="tl-body">
-      <div className="tl-content" style={{ width: HEAD_W + laneWidth }}>
+      <div className="tl-content" style={{ width: headW + laneWidth }}>
         <div className="tl-ruler-row">
           <div className="tl-corner">
             <span className="t-caption">Lajur</span>
@@ -202,12 +271,12 @@ export function TimelineBody() {
                 {...laneDropHandlers(track, zoom)}
               >
                 {clips.length === 0 && track.kind === 'video' && track.id === tracks.findLast((t) => t.kind === 'video')?.id && (
-                  <span className="tl-empty t-caption">Seret media ke sini.</span>
+                  <span className="tl-empty t-caption">{coarse ? 'Tambahkan media dari panel Media.' : 'Seret media ke sini.'}</span>
                 )}
               </div>
             </div>
           ))}
-          <div className="tl-clips" style={{ left: HEAD_W, width: laneWidth }}>
+          <div className="tl-clips" style={{ left: headW, width: laneWidth }}>
             {clips.map((clip) => (
               <ClipView
                 key={clip.id}
@@ -221,8 +290,8 @@ export function TimelineBody() {
           </div>
         </div>
 
-        <Guides zoom={zoom} tracks={tracks} />
-        <PlayheadLine zoom={zoom} />
+        <Guides zoom={zoom} tracks={tracks} headW={headW} />
+        <PlayheadLine zoom={zoom} headW={headW} />
       </div>
     </div>
   );

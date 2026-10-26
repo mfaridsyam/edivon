@@ -9,6 +9,9 @@ import { formatShort } from '../timeline/time';
 import { Button } from '../ui/Button';
 import { TabPanel, Tabs } from '../ui/Tabs';
 import { IconDownload, IconEffect, IconFilm, IconImage, IconMusic } from '../ui/icons';
+import { promptInstall, useInstall } from '../app/install';
+import { useUi } from '../app/uiState';
+import { COARSE_QUERY, COMPACT_QUERY, matches, useMediaQuery } from '../ui/useMediaQuery';
 import { endPayloadDrag, startPayloadDrag } from './dragPayload';
 import './mediabin.css';
 
@@ -25,9 +28,21 @@ function hasFiles(e: DragEvent<HTMLElement>): boolean {
   return Array.from(e.dataTransfer.types).includes('Files');
 }
 
-function Dropzone({ hint }: { hint: string }) {
+/** Di ponsel panel media menutupi pratinjau; tutup setelah menambah sesuatu agar hasilnya langsung terlihat. */
+function revealTimeline(): void {
+  const ui = useUi.getState();
+  if (ui.narrow && ui.leftOpen && matches(COMPACT_QUERY)) ui.toggleLeft();
+}
+
+function addMedia(id: string): void {
+  addMediaToTimeline(id);
+  revealTimeline();
+}
+
+function Dropzone({ hint, touchHint }: { hint: string; touchHint: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
+  const coarse = useMediaQuery(COARSE_QUERY);
   return (
     <div
       className="dropzone"
@@ -50,7 +65,7 @@ function Dropzone({ hint }: { hint: string }) {
       }}
     >
       <IconDownload size={18} />
-      <p className="t-body">{hint}</p>
+      <p className="t-body">{coarse ? touchHint : hint}</p>
       <Button onClick={() => inputRef.current?.click()}>Pilih berkas</Button>
       <p className="t-caption">Berkas tidak dikirim ke server.</p>
       <input
@@ -88,6 +103,7 @@ function cardLabel(m: MediaItem): string {
 
 function MediaGrid({ items, label }: { items: MediaItem[]; label: string }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const coarse = useMediaQuery(COARSE_QUERY);
   const listRef = useRef<HTMLDivElement>(null);
   const activeId = items.some((m) => m.id === selected) ? selected : (items[0]?.id ?? null);
 
@@ -106,7 +122,7 @@ function MediaGrid({ items, label }: { items: MediaItem[]; label: string }) {
     else if (e.key === 'End') next = items.length - 1;
     else if (e.key === 'Enter') {
       e.preventDefault();
-      addMediaToTimeline(m.id);
+      addMedia(m.id);
       return;
     }
     if (next === null) return;
@@ -116,6 +132,8 @@ function MediaGrid({ items, label }: { items: MediaItem[]; label: string }) {
   };
 
   return (
+    <>
+    {coarse && <p className="t-caption">Ketuk media untuk menambahkannya di garis merah.</p>}
     <div ref={listRef} className="media-grid" role="listbox" aria-label={label}>
       {items.map((m, i) => {
         const ready = m.status === 'ready';
@@ -131,8 +149,14 @@ function MediaGrid({ items, label }: { items: MediaItem[]; label: string }) {
             className="media-card"
             draggable={ready}
             title={ready ? `${m.name}. Klik dua kali atau tekan Enter untuk menambah ke timeline.` : m.name}
-            onClick={() => setSelected(m.id)}
-            onDoubleClick={() => addMediaToTimeline(m.id)}
+            onClick={() => {
+              setSelected(m.id);
+              // Di layar sentuh tidak ada seret-lepas atau klik dua kali: ketuk langsung menambah.
+              if (coarse && ready) addMedia(m.id);
+            }}
+            onDoubleClick={() => {
+              if (!coarse) addMedia(m.id);
+            }}
             onKeyDown={(e) => onKeyDown(e, i, m)}
             onDragStart={(e) => {
               setSelected(m.id);
@@ -157,6 +181,7 @@ function MediaGrid({ items, label }: { items: MediaItem[]; label: string }) {
         );
       })}
     </div>
+    </>
   );
 }
 
@@ -171,7 +196,10 @@ function TextPresets() {
             type="button"
             className="preset-card"
             draggable
-            onClick={() => addTextClip(p.id)}
+            onClick={() => {
+              addTextClip(p.id);
+              revealTimeline();
+            }}
             onDragStart={(e) => startPayloadDrag(e, { kind: 'text', preset: p.id }, p.label)}
             onDragEnd={endPayloadDrag}
             aria-label={`Tambah ${p.label.toLowerCase()}`}
@@ -196,7 +224,10 @@ function EffectList() {
             type="button"
             className="media-card effect-card"
             draggable
-            onClick={() => addEffectClip(fx.id)}
+            onClick={() => {
+              addEffectClip(fx.id);
+              revealTimeline();
+            }}
             onDragStart={(e) => startPayloadDrag(e, { kind: 'effect', effect: fx.id }, fx.label)}
             onDragEnd={endPayloadDrag}
             aria-label={`Tambah efek ${fx.label.toLowerCase()}`}
@@ -227,6 +258,33 @@ function EffectList() {
   );
 }
 
+/** Ajakan memasang Klip sebagai aplikasi, bila browser menawarkannya (atau petunjuk untuk iPhone/iPad). */
+function InstallCard() {
+  const prompt = useInstall((s) => s.prompt);
+  const standalone = useInstall((s) => s.standalone);
+  const ios = useInstall((s) => s.ios);
+  const announce = useEditor((s) => s.announce);
+  if (standalone || (!prompt && !ios)) return null;
+  return (
+    <section className="install-card" aria-label="Pasang aplikasi">
+      <p className="t-label">Pasang Klip di perangkatmu</p>
+      <p className="t-caption">Buka seperti aplikasi biasa, juga tanpa internet. Video tetap diproses di perangkatmu.</p>
+      {prompt ? (
+        <Button
+          onClick={async () => {
+            const ok = await promptInstall();
+            announce(ok ? 'Klip dipasang.' : 'Pemasangan dibatalkan.');
+          }}
+        >
+          Pasang aplikasi
+        </Button>
+      ) : (
+        <p className="t-caption">Di Safari: ketuk tombol Bagikan, lalu pilih Tambahkan ke Layar Utama.</p>
+      )}
+    </section>
+  );
+}
+
 export function MediaBin() {
   const tab = useEditor((s) => s.leftTab);
   const setTab = useEditor((s) => s.setLeftTab);
@@ -252,13 +310,14 @@ export function MediaBin() {
       <TabPanel idPrefix="bin" id={tab} className="bin-body">
         {tab === 'media' && (
           <>
-            <Dropzone hint="Seret video atau gambar ke sini." />
+            <Dropzone hint="Seret video atau gambar ke sini." touchHint="Pilih video atau gambar dari perangkatmu." />
             {visual.length > 0 && <MediaGrid items={visual} label="Video dan gambar" />}
+            <InstallCard />
           </>
         )}
         {tab === 'audio' && (
           <>
-            <Dropzone hint="Seret musik atau rekaman suara ke sini." />
+            <Dropzone hint="Seret musik atau rekaman suara ke sini." touchHint="Pilih musik atau rekaman suara dari perangkatmu." />
             {audio.length > 0 && <MediaGrid items={audio} label="Audio" />}
           </>
         )}

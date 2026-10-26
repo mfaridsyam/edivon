@@ -11,7 +11,7 @@ Editor video yang berjalan sepenuhnya di browser. Tidak ada server dan tidak ada
 - Aksi di garis merah (playhead): **Potong kiri** (Q) membuang bagian klip sebelum garis, **Belah** (W) membelah klip di garis, dan **Potong kanan** (E) membuang bagian sesudah garis. Yang dikenai adalah klip terpilih di bawah garis. Tanpa pilihan, Belah mengenai semua klip di bawah garis, sedangkan Potong kiri/kanan hanya klip Video 1 supaya musik dan teks tetap sinkron.
 - Properti klip: skala, posisi, rotasi, opasitas, kecepatan (0,5× sampai 4×), kecerahan, kontras, saturasi, volume, dan tombol **Setel ulang**.
 - Klip video, gambar, dan teks bisa dipilih langsung di pratinjau. Seret untuk memindahkannya (menempel ke garis tengah), atau tarik sudutnya untuk mengubah skala.
-- Pratinjau dengan rasio 16:9, 9:16, atau 1:1, plus timecode dan layar penuh.
+- Pratinjau dengan rasio 16:9, 4:3, 1:1, 3:4, atau 9:16, plus timecode dan layar penuh.
 - Ekspor ke MP4 (H.264 + AAC) atau WebM (VP9 + Opus) dalam 720p, 1080p, atau 4K bila browser mendukung. Sebelum mulai, dialog menampilkan perkiraan ukuran berkas. Selama ekspor, progres dan estimasi sisa waktu ditampilkan, dan ekspor bisa dibatalkan.
 - Undo/redo dan pintasan keyboard untuk semua alat.
 
@@ -48,6 +48,22 @@ Video contoh untuk tes end-to-end dibuat otomatis di browser pada saat tes dan d
 
 Setiap push ke branch utama akan memicu deploy baru.
 
+## Memasang sebagai aplikasi
+
+Klip adalah web app yang bisa dipasang (PWA). Setelah dipasang, Klip terbuka di jendelanya sendiri dan tetap bisa dipakai tanpa internet.
+
+- **Chrome, Edge, atau Brave (desktop dan Android):** pakai ikon pasang di bilah alamat, menu **Pasang aplikasi**, atau tombol **Pasang aplikasi** di panel Media.
+- **iPhone atau iPad (Safari):** ketuk **Bagikan**, lalu pilih **Tambahkan ke Layar Utama**.
+
+Service worker dibuat saat build dari `src/sw-template.js`, dan menyimpan semua berkas aplikasi untuk dipakai tanpa internet. Setiap deploy menghasilkan versi cache baru, dan versi lama dihapus otomatis. Ikon dibuat dengan `node scripts/generate-icons.mjs`.
+
+## Di ponsel
+
+- Buka panel lewat tombol **Media**. Ketuk kartu media untuk menambahkannya di garis merah; panel menutup sendiri supaya hasilnya langsung terlihat.
+- Usap timeline untuk menggulir. **Tekan-tahan** klip sebentar untuk memindahkannya, atau tekan-tahan ujungnya untuk memendekkan.
+- Cubit timeline dengan dua jari untuk zoom, atau pakai tombol **−** dan **+**.
+- Properti klip ada di laci **Properti** di bilah atas.
+
 ## Batasan browser
 
 - **Ekspor butuh WebCodecs** (`VideoEncoder` dan `AudioEncoder`). Gunakan Chrome atau Edge versi terbaru di desktop. Kalau browser tidak mendukung, Klip menampilkan pesan dan pratinjau tetap bisa dipakai.
@@ -66,7 +82,7 @@ Setiap push ke branch utama akan memicu deploy baru.
 - Berkas tidak pernah dikirim ke server. Video, audio, dan gambar hanya ada di memori tab sebagai `File`/`Blob` dan object URL (`blob:`).
 - Tidak ada backend, API, analytics, cookie, atau skrip pihak ketiga. Font, ikon, dan pustaka di-self-host atau di-bundle.
 - Build produksi memasang Content Security Policy yang hanya mengizinkan skrip, font, dan koneksi dari origin sendiri. Akibatnya, kode Klip juga tidak bisa mengirim data ke luar.
-- Tidak ada yang disimpan di perangkat (IndexedDB atau localStorage tidak dipakai). Satu-satunya berkas yang ditulis adalah hasil ekspor yang kamu unduh sendiri.
+- Media dan proyekmu tidak disimpan di perangkat (IndexedDB atau localStorage tidak dipakai). Yang disimpan browser hanya salinan berkas aplikasi Klip lewat service worker, supaya bisa dibuka tanpa internet. Media dibaca lewat `blob:` URL yang tidak melewati service worker. Satu-satunya berkas yang ditulis adalah hasil ekspor yang kamu unduh sendiri.
 
 ## Pintasan keyboard
 

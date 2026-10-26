@@ -525,3 +525,27 @@
   min-width: 64px;
   padding: 0 var(--space-2);
 }
+
+/* ---------- Layar sentuh: target sentuh lebih besar ---------- */
+@media (pointer: coarse) {
+  .slider,
+  .slider input {
+    height: 32px;
+  }
+  .slider-track {
+    left: 10px;
+    right: 10px;
+  }
+  .slider input::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+    margin-top: -8px;
+  }
+  .slider input::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+  }
+  .field {
+    min-height: 40px;
+  }
+}
