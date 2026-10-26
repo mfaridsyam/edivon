@@ -21,6 +21,7 @@ import { codecLabel } from '../engine/codecs';
 import { findTrack, hasAudio, isSourceTimed, projectDuration, sourceTimeAt, type VideoClip } from '../timeline/model';
 import { FPS } from '../timeline/time';
 import { mixBlock, type AudibleClip } from './audioMix';
+import { audioBitrate, videoBitrate } from './estimate';
 import { AUDIO_CHANNELS, AUDIO_RATE, CODECS, type StartMessage, type WorkerMessage } from './protocol';
 
 /** Bagian dari DedicatedWorkerGlobalScope yang dipakai di sini (proyek memakai satu tsconfig dengan lib DOM). */
@@ -119,10 +120,18 @@ async function run(msg: StartMessage) {
   const canvas = new OffscreenCanvas(settings.width, settings.height);
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('Kanvas tidak tersedia di worker.');
-  const quality = new Quality(settings.quality);
-  const videoSource = new CanvasSource(canvas, { codec: codecs.video, quality, keyFrameInterval: 2 });
+  // Gambar sumber diperkecil/diperbesar ke ukuran keluaran dengan interpolasi terbaik.
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  // Bitrate eksplisit (bukan bawaan mediabunny yang terlalu rendah untuk rekaman kamera).
+  const videoQuality = new Quality({
+    bitrate: videoBitrate(settings.format, settings.width, settings.height, settings.quality, settings.fps),
+    bitrateMode: 'variable',
+  });
+  const audioQuality = new Quality({ bitrate: audioBitrate(settings.format, settings.quality) });
+  const videoSource = new CanvasSource(canvas, { codec: codecs.video, quality: videoQuality, keyFrameInterval: 2 });
   output.addVideoTrack(videoSource, { frameRate: settings.fps });
-  const audioSource = audible.length > 0 ? new AudioSampleSource({ codec: codecs.audio, quality }) : null;
+  const audioSource = audible.length > 0 ? new AudioSampleSource({ codec: codecs.audio, quality: audioQuality }) : null;
   if (audioSource) output.addAudioTrack(audioSource);
   await output.start();
 

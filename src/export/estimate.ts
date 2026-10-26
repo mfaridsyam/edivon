@@ -2,35 +2,39 @@ import { findTrack, hasAudio, isSourceTimed, type Project } from '../timeline/mo
 import { CODECS, type ExportFormat, type ExportQuality } from './protocol';
 
 /*
- * Perkiraan ukuran hasil ekspor dari bitrate yang dipakai mediabunny untuk tiap `Quality`
- * (rumus disalin dari mediabunny/src/encode.ts; tes memastikan angkanya tetap sama).
- * Encoder memakai kualitas konstan bila browser mendukung, jadi ukuran sebenarnya ikut isi video:
- * rekaman layar atau gambar diam jauh lebih kecil, rekaman kamera yang banyak gerak mendekati angka ini.
+ * Bitrate ekspor, dipakai bersama oleh worker (target encoder) dan dialog (perkiraan ukuran).
+ *
+ * Bitrate bawaan mediabunny untuk Quality('medium') hanya sekitar 1,5 Mbps di 720p dan 3,2 Mbps di 1080p.
+ * Untuk rekaman kamera, terutama CCTV yang berderau, itu menghasilkan blok-blok kotak. Di sini targetnya
+ * dihitung dari bit per piksel per frame, mendekati anjuran umum untuk unggahan video
+ * (1080p30 H.264: sekitar 4 / 6 / 10 Mbps untuk rendah / sedang / tinggi).
  */
 
-const QUALITY_LEVEL: Record<ExportQuality, number> = { low: 0.25, medium: 0.5, high: 0.75 };
-const VIDEO_EFFICIENCY = { avc: 1, vp9: 0.6 } as const;
-const AAC_RATES = [96_000, 128_000, 160_000, 192_000];
+/** Bit per piksel per frame untuk H.264. */
+const VIDEO_BPP: Record<ExportQuality, number> = { low: 0.06, medium: 0.1, high: 0.16 };
+/** VP9 butuh bitrate lebih kecil untuk mutu yang setara. */
+const VIDEO_EFFICIENCY = { avc: 1, vp9: 0.7 } as const;
+const MIN_VIDEO_BITRATE = 500_000;
+const AUDIO_BITRATE: Record<'aac' | 'opus', Record<ExportQuality, number>> = {
+  aac: { low: 96_000, medium: 128_000, high: 192_000 },
+  opus: { low: 64_000, medium: 96_000, high: 128_000 },
+};
 /** Overhead kontainer MP4/WebM (indeks dan header), kira-kira. */
 const CONTAINER_OVERHEAD = 1.01;
 
-function bitrateFactor(quality: ExportQuality): number {
-  return 0.3 * Math.exp(2.5538 * QUALITY_LEVEL[quality]);
-}
-
-export function videoBitrate(format: ExportFormat, width: number, height: number, quality: ExportQuality): number {
-  const scale = Math.pow((width * height) / (1920 * 1080), 0.95);
-  const bitrate = 3_000_000 * scale * VIDEO_EFFICIENCY[CODECS[format].video] * bitrateFactor(quality);
-  return Math.ceil(bitrate / 1000) * 1000;
+export function videoBitrate(
+  format: ExportFormat,
+  width: number,
+  height: number,
+  quality: ExportQuality,
+  fps = 30,
+): number {
+  const bitrate = width * height * fps * VIDEO_BPP[quality] * VIDEO_EFFICIENCY[CODECS[format].video];
+  return Math.max(MIN_VIDEO_BITRATE, Math.round(bitrate / 1000) * 1000);
 }
 
 export function audioBitrate(format: ExportFormat, quality: ExportQuality): number {
-  const factor = bitrateFactor(quality);
-  if (CODECS[format].audio === 'aac') {
-    const target = 128_000 * factor;
-    return AAC_RATES.reduce((best, r) => (Math.abs(r - target) < Math.abs(best - target) ? r : best));
-  }
-  return Math.round(Math.max(6000, 64_000 * factor) / 1000) * 1000;
+  return AUDIO_BITRATE[CODECS[format].audio][quality];
 }
 
 /** True bila ekspor akan berisi trek audio (sama dengan aturan di worker ekspor). */

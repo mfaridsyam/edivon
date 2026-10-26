@@ -159,6 +159,9 @@ export function drawFrame(o: DrawOptions, project: Project, frame: number): void
   const ref = frameSize(project.aspect);
   // Satuan: piksel keluaran per piksel bingkai acuan.
   const unit = height / ref.height;
+  // Penskalaan sumber ke bingkai keluaran: interpolasi terbaik agar tidak tampak kotak-kotak atau bergerigi.
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
