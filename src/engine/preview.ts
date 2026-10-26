@@ -20,6 +20,8 @@ interface Slot {
   mediaId: string;
   clipId: string | null;
   gain: GainNode | null;
+  /** play() sudah diminta tapi belum selesai; jangan seek atau minta ulang selama ini. */
+  pendingPlay: boolean;
 }
 
 type VideoWithFrameCallback = HTMLVideoElement & {
@@ -27,12 +29,19 @@ type VideoWithFrameCallback = HTMLVideoElement & {
 };
 
 export const PREVIEW_FONT = '"Figtree", system-ui, sans-serif';
-/** Selisih (detik) antara elemen dan jam pratinjau yang masih ditoleransi saat diputar. */
-const DRIFT = 0.2;
+/**
+ * Selisih (detik) yang masih ditoleransi untuk elemen pengikut sebelum di-seek ulang. Seek saat
+ * berputar terdengar sebagai klik, jadi ambangnya dibuat longgar dan elemen utama tidak pernah di-seek.
+ */
+const FOLLOWER_DRIFT = 0.35;
+/** Jam mengikuti elemen utama selama selisihnya di bawah ini (detik). */
+const MASTER_WINDOW = 0.75;
+/** Elemen utama dianggap macet bila waktunya tidak maju selama ini (ms). */
+const MASTER_STALL = 750;
 /** Klip yang akan mulai dalam sekian frame disiapkan lebih dulu agar tidak tersendat. */
 const LOOKAHEAD = 20;
-/** Batas menunggu elemen mulai berputar (ms) sebelum jam tetap dijalankan. */
-const START_TIMEOUT = 500;
+/** Batas menunggu elemen mulai berputar (ms) sebelum jam tetap dijalankan; berkas besar butuh waktu dimuat. */
+const START_TIMEOUT = 3000;
 
 /**
  * Mesin pratinjau: elemen <video>/<audio> tersembunyi per sumber, satu kanvas yang
@@ -57,6 +66,9 @@ export class PreviewEngine {
   private waitingSince: number | null = null;
   /** Frame terakhir yang ditulis mesin ke store, untuk membedakan dari lompatan oleh pengguna. */
   private ownFrame = -1;
+  /** Klip yang elemennya menjadi jam utama saat diputar (biasanya yang bersuara). */
+  private masterClipId: string | null = null;
+  private masterSeen = { time: -1, at: 0 };
   private readonly textColors = resolveTextColors();
   private readonly unsubscribe: () => void;
   private destroyed = false;
@@ -147,8 +159,41 @@ export class PreviewEngine {
     }
     this.clock = { startFrame: from, startTime: performance.now() };
     this.waitingSince = performance.now();
+    this.masterClipId = null;
+    // Dijalankan langsung (masih di dalam ketukan/klik pengguna) agar browser HP mengizinkan play() bersuara.
+    // Klip yang aktif dimulai dulu di posisi yang benar; elemen media lain hanya dibuka kuncinya.
+    this.syncPlaying(from, false);
+    this.primeMedia();
     cancelAnimationFrame(this.raf);
     this.raf = requestAnimationFrame(this.tick);
+  }
+
+  /**
+   * Menyiapkan satu elemen untuk tiap media bersuara di proyek dan "membuka" pemutarannya selagi masih di
+   * dalam gestur pengguna. Browser HP (terutama iOS) hanya mengizinkan play() bersuara dari gestur.
+   */
+  private primeMedia(): void {
+    const project = editor.get().project;
+    const seen = new Set<string>();
+    for (const clip of project.clips) {
+      if (!isSourceTimed(clip) || seen.has(clip.mediaId)) continue;
+      seen.add(clip.mediaId);
+      const media = this.mediaFor(clip.mediaId);
+      if (!media) continue;
+      const slot = this.slots.find((sl) => sl.mediaId === media.id) ?? this.createSlot(media);
+      if (slot.clipId !== null || !slot.el.paused || slot.pendingPlay) continue;
+      if (slot.gain) slot.gain.gain.value = 0;
+      slot.pendingPlay = true;
+      slot.el.play().then(
+        () => {
+          slot.pendingPlay = false;
+          if (slot.clipId === null) slot.el.pause();
+        },
+        () => {
+          slot.pendingPlay = false;
+        },
+      );
+    }
   }
 
   /** True bila semua elemen untuk klip aktif di frame ini sedang berputar dengan data cukup. */
@@ -166,6 +211,7 @@ export class PreviewEngine {
     cancelAnimationFrame(this.raf);
     this.clock = null;
     this.waitingSince = null;
+    this.masterClipId = null;
     for (const slot of this.slots) slot.el.pause();
     this.syncPaused();
     this.requestDraw();
@@ -182,13 +228,18 @@ export class PreviewEngine {
         this.waitingSince = null;
         this.clock = { startFrame: this.clock.startFrame, startTime: now };
       } else {
-        this.syncPlaying(this.clock.startFrame);
+        this.syncPlaying(this.clock.startFrame, false);
         this.draw(this.clock.startFrame);
         this.raf = requestAnimationFrame(this.tick);
         return;
       }
     }
-    const exact = this.clock.startFrame + ((now - this.clock.startTime) / 1000) * FPS;
+    let exact = this.clock.startFrame + ((now - this.clock.startTime) / 1000) * FPS;
+    const followed = this.followMaster(exact, now);
+    if (followed !== null) {
+      exact = followed;
+      this.clock = { startFrame: followed, startTime: now };
+    }
     if (exact >= end) {
       this.ownFrame = end;
       s.setPlayhead(end);
@@ -196,14 +247,51 @@ export class PreviewEngine {
       return;
     }
     const frame = Math.floor(exact);
-    if (frame !== s.playhead) {
+    // Playhead hanya maju saat diputar, agar tidak bergetar mundur saat jam menyesuaikan diri ke elemen.
+    if (frame > s.playhead) {
       this.ownFrame = frame;
       s.setPlayhead(frame);
     }
-    this.syncPlaying(exact);
+    this.syncPlaying(exact, true);
     this.draw(exact);
     this.raf = requestAnimationFrame(this.tick);
   };
+
+  /**
+   * Waktu timeline menurut elemen utama (yang sedang bersuara). Mengikuti elemen membuat gambar, suara, dan
+   * playhead tetap bersama tanpa perlu seek berulang. Null bila tidak ada elemen yang bisa diikuti.
+   */
+  private followMaster(exact: number, now: number): number | null {
+    const project = editor.get().project;
+    const candidates: { slot: Slot; clip: MediaClip }[] = [];
+    for (const slot of this.slots) {
+      if (!slot.clipId || slot.el.paused || slot.el.seeking || slot.el.readyState < 3) continue;
+      const clip = project.clips.find((c) => c.id === slot.clipId);
+      if (!clip || !isSourceTimed(clip) || exact < clip.start || exact >= clip.start + clip.duration) continue;
+      candidates.push({ slot, clip });
+    }
+    if (candidates.length === 0) {
+      this.masterClipId = null;
+      return null;
+    }
+    const pick =
+      candidates.find((c) => c.clip.id === this.masterClipId) ??
+      candidates.find((c) => this.gainFor(c.clip) > 0) ??
+      candidates[0];
+    if (!pick) return null;
+    if (pick.clip.id !== this.masterClipId) {
+      this.masterClipId = pick.clip.id;
+      this.masterSeen = { time: -1, at: now };
+    }
+    const t = pick.slot.el.currentTime;
+    if (t !== this.masterSeen.time) this.masterSeen = { time: t, at: now };
+    else if (now - this.masterSeen.at > MASTER_STALL) return null;
+    const frame = pick.clip.start + ((t - pick.clip.in) / pick.clip.speed) * FPS;
+    if (Math.abs(frame - exact) < MASTER_WINDOW * FPS) return frame;
+    // Terlalu jauh (mis. elemen baru mulai setelah dimuat lama): bukan jam utama dulu, biar dikoreksi sekali.
+    this.masterClipId = null;
+    return null;
+  }
 
   /* ---------- Elemen media ---------- */
 
@@ -212,7 +300,8 @@ export class PreviewEngine {
   }
 
   private createSlot(media: MediaItem): Slot {
-    const el = document.createElement(media.kind === 'audio' ? 'audio' : 'video');
+    // Media yang gambarnya didekode lewat WebCodecs hanya butuh suaranya; <audio> tidak ikut mendekode video.
+    const el = document.createElement(media.kind === 'audio' || media.decodePreview ? 'audio' : 'video');
     el.preload = 'auto';
     el.src = media.url;
     // Kecepatan mengubah pitch, sama seperti hasil ekspor.
@@ -235,7 +324,7 @@ export class PreviewEngine {
       el.addEventListener('loadeddata', () => this.requestDraw());
     }
     this.host.appendChild(el);
-    const slot: Slot = { el, mediaId: media.id, clipId: null, gain: null };
+    const slot: Slot = { el, mediaId: media.id, clipId: null, gain: null, pendingPlay: false };
     if (this.audio) this.connect(slot);
     this.slots.push(slot);
     return slot;
@@ -270,6 +359,7 @@ export class PreviewEngine {
     for (const slot of this.slots) {
       if (slot.clipId !== null && !used.has(slot.clipId)) {
         slot.el.pause();
+        if (slot.clipId === this.masterClipId) this.masterClipId = null;
         slot.clipId = null;
       }
     }
@@ -291,7 +381,7 @@ export class PreviewEngine {
     }
   }
 
-  private syncPlaying(exact: number): void {
+  private syncPlaying(exact: number, correctDrift: boolean): void {
     const used = new Set<string>();
     for (const { clip, active } of this.timedClips(exact, LOOKAHEAD)) {
       const slot = this.acquire(clip);
@@ -300,17 +390,31 @@ export class PreviewEngine {
       const el = slot.el;
       if (!active) {
         // Siapkan di titik masuk supaya klip langsung tampil saat mulai.
-        if (!el.paused) el.pause();
-        if (Math.abs(el.currentTime - clip.in) > 0.05) el.currentTime = clip.in;
+        if (!el.paused && !slot.pendingPlay) el.pause();
+        if (el.paused && !el.seeking && Math.abs(el.currentTime - clip.in) > 0.05) el.currentTime = clip.in;
         continue;
       }
       const desired = sourceTimeAt(clip, exact);
       if (el.playbackRate !== clip.speed) el.playbackRate = clip.speed;
       if (slot.gain) slot.gain.gain.value = this.gainFor(clip);
+      if (slot.pendingPlay) continue;
       if (el.paused) {
-        if (Math.abs(el.currentTime - desired) > 0.05) el.currentTime = desired;
-        void el.play().catch(() => {});
-      } else if (Math.abs(el.currentTime - desired) > DRIFT) {
+        if (!el.seeking && Math.abs(el.currentTime - desired) > 0.05) el.currentTime = desired;
+        slot.pendingPlay = true;
+        el.play().then(
+          () => {
+            slot.pendingPlay = false;
+          },
+          () => {
+            slot.pendingPlay = false;
+          },
+        );
+      } else if (
+        correctDrift &&
+        clip.id !== this.masterClipId &&
+        !el.seeking &&
+        Math.abs(el.currentTime - desired) > FOLLOWER_DRIFT
+      ) {
         el.currentTime = desired;
       }
     }
