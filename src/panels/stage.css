@@ -98,7 +98,19 @@
     display: none;
   }
 }
-@container (max-width: 520px) {
+/* Lebar sedang: kolom mengikuti isi agar enam pilihan rasio tidak menimpa tombol putar. */
+@container (max-width: 799.98px) {
+  .transport {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .transport-controls {
+    justify-self: center;
+  }
+  .transport-end .segment {
+    padding: 0 7px;
+  }
+}
+@container (max-width: 599.98px) {
   .transport {
     grid-template-columns: auto auto;
     grid-template-rows: auto auto;

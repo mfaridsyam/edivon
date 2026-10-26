@@ -12,16 +12,17 @@ export interface Track {
   muted: boolean;
 }
 
-export type Aspect = '16:9' | '4:3' | '1:1' | '3:4' | '9:16';
+export type Aspect = '16:9' | '4:3' | '1:1' | '4:5' | '3:4' | '9:16';
 
 /** Urutan tampil di pratinjau: dari lanskap ke potret. */
-export const ASPECTS: readonly Aspect[] = ['16:9', '4:3', '1:1', '3:4', '9:16'];
+export const ASPECTS: readonly Aspect[] = ['16:9', '4:3', '1:1', '4:5', '3:4', '9:16'];
 
 /** Perbandingan lebar dan tinggi tiap rasio. */
 export const ASPECT_RATIO: Record<Aspect, readonly [width: number, height: number]> = {
   '16:9': [16, 9],
   '4:3': [4, 3],
   '1:1': [1, 1],
+  '4:5': [4, 5],
   '3:4': [3, 4],
   '9:16': [9, 16],
 };

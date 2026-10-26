@@ -54,8 +54,13 @@ export interface EstimateInput {
   withAudio: boolean;
 }
 
+/** Ukuran berkas (byte) dari bitrate total dan durasi, termasuk overhead kontainer. */
+export function bytesFor(bitsPerSecond: number, seconds: number): number {
+  return Math.round(((bitsPerSecond * seconds) / 8) * CONTAINER_OVERHEAD);
+}
+
 /** Perkiraan ukuran berkas dalam byte. */
 export function estimateBytes(o: EstimateInput): number {
   const bps = videoBitrate(o.format, o.width, o.height, o.quality) + (o.withAudio ? audioBitrate(o.format, o.quality) : 0);
-  return Math.round(((bps * o.seconds) / 8) * CONTAINER_OVERHEAD);
+  return bytesFor(bps, o.seconds);
 }

@@ -1,11 +1,12 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useUi } from '../app/uiState';
-import { estimateBytes, projectHasAudio } from '../export/estimate';
+import { bytesFor, estimateBytes, projectHasAudio } from '../export/estimate';
+import { SOCIAL_PRESETS, letterbox, presetById, type DestinationId } from '../export/presets';
 import { downloadBlob, startExport, type ExportJob } from '../export/exporter';
 import { CODECS, type ExportFormat, type ExportQuality, type ExportResolution } from '../export/protocol';
-import { detectSupport, hasWebCodecs, outputSize, type FormatSupport } from '../export/support';
+import { detectPresetSupport, detectSupport, hasWebCodecs, outputSize, type FormatSupport } from '../export/support';
 import { editor, useEditor } from '../state/store';
-import { projectDuration } from '../timeline/model';
+import { projectDuration, type Aspect } from '../timeline/model';
 import { FPS, formatTimecode } from '../timeline/time';
 import { Button } from '../ui/Button';
 import { Field, Input, Progress, Segmented } from '../ui/Controls';
@@ -51,6 +52,64 @@ function formatRemaining(seconds: number): string {
   return `Sisa sekitar ${m} menit.`;
 }
 
+function formatMbps(bps: number): string {
+  return `${(bps / 1_000_000).toFixed(1).replace('.', ',').replace(',0', '')} Mbps`;
+}
+
+const DESTINATIONS: readonly { id: DestinationId; label: string; detail: string }[] = [
+  { id: 'custom', label: 'Umum', detail: 'Atur format, resolusi, kualitas' },
+  ...SOCIAL_PRESETS.map((p) => ({ id: p.id, label: p.label, detail: `${p.width}×${p.height} · ${p.aspect}` })),
+];
+
+/** Kartu pilihan tujuan ekspor (role="radiogroup"), panah untuk berpindah. */
+function DestinationPicker({
+  value,
+  onChange,
+  available,
+}: {
+  value: DestinationId;
+  onChange: (id: DestinationId) => void;
+  available: ReadonlySet<string>;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const enabled = DESTINATIONS.filter((d) => d.id === 'custom' || available.has(d.id));
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const i = enabled.findIndex((d) => d.id === value);
+    let next: number | null = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (i + 1) % enabled.length;
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (i - 1 + enabled.length) % enabled.length;
+    if (next === null) return;
+    e.preventDefault();
+    const d = enabled[next];
+    if (!d) return;
+    onChange(d.id);
+    ref.current?.querySelector<HTMLElement>(`[data-dest="${d.id}"]`)?.focus();
+  };
+  return (
+    <div ref={ref} className="export-dest" role="radiogroup" aria-label="Tujuan" onKeyDown={onKeyDown}>
+      {DESTINATIONS.map((d) => {
+        const ok = d.id === 'custom' || available.has(d.id);
+        return (
+          <button
+            key={d.id}
+            type="button"
+            role="radio"
+            data-dest={d.id}
+            aria-checked={d.id === value}
+            disabled={!ok}
+            tabIndex={d.id === value ? 0 : -1}
+            className="export-dest-item"
+            onClick={() => onChange(d.id)}
+          >
+            <span className="t-label">{d.label}</span>
+            <span className="t-caption">{ok ? d.detail : 'Butuh MP4, belum didukung browser ini'}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ExportDialog() {
   const open = useUi((s) => s.exportOpen);
   const close = useUi((s) => s.closeExport);
@@ -65,6 +124,8 @@ export function ExportDialog() {
   const [format, setFormat] = useState<ExportFormat>('mp4');
   const [resolution, setResolution] = useState<ExportResolution>(1080);
   const [quality, setQuality] = useState<ExportQuality>('medium');
+  const [destination, setDestination] = useState<DestinationId>('custom');
+  const [presetOk, setPresetOk] = useState<ReadonlySet<string>>(new Set());
   const [warnings, setWarnings] = useState<string[]>([]);
   const [now, setNow] = useState(() => performance.now());
   const job = useRef<ExportJob | null>(null);
@@ -81,13 +142,15 @@ export function ExportDialog() {
     }
     setPhase({ kind: 'checking' });
     let alive = true;
-    void detectSupport(aspect).then((result) => {
+    void Promise.all([detectSupport(aspect), detectPresetSupport(SOCIAL_PRESETS)]).then(([result, presets]) => {
       if (!alive) return;
       setSupport(result);
+      setPresetOk(presets);
       if (result.length === 0) {
         setPhase({ kind: 'unsupported' });
         return;
       }
+      setDestination((d) => (d === 'custom' || presets.has(d) ? d : 'custom'));
       const fmt = result.find((r) => r.format === format) ?? result[0];
       if (fmt) {
         setFormat(fmt.format);
@@ -124,8 +187,19 @@ export function ExportDialog() {
   }, [open, phase]);
 
   const current = support.find((s) => s.format === format);
-  const size = outputSize(aspect, resolution);
-  const estimate = estimateBytes({ format, ...size, quality, seconds: duration / FPS, withAudio });
+  const preset = presetById(destination);
+  const size = preset ? { width: preset.width, height: preset.height } : outputSize(aspect, resolution);
+  const outFormat: ExportFormat = preset ? 'mp4' : format;
+  const seconds = duration / FPS;
+  const estimate = preset
+    ? bytesFor(preset.videoBitrate + (withAudio ? preset.audioBitrate : 0), seconds)
+    : estimateBytes({ format, ...size, quality, seconds, withAudio });
+
+  const changeAspect = (next: Aspect) => {
+    const s = editor.get();
+    s.apply((p) => ({ ...p, aspect: next }));
+    s.announce(`Rasio proyek diubah ke ${next}. Periksa pratinjau sebelum mengekspor.`);
+  };
 
   const begin = () => {
     const s = editor.get();
@@ -138,7 +212,18 @@ export function ExportDialog() {
     job.current = startExport(
       s.project,
       s.media,
-      { format, width: size.width, height: size.height, fps: FPS, quality },
+      preset
+        ? {
+            format: 'mp4',
+            width: preset.width,
+            height: preset.height,
+            fps: FPS,
+            quality: 'high',
+            videoBitrate: preset.videoBitrate,
+            audioBitrate: preset.audioBitrate,
+            inner: letterbox(s.project.aspect, preset.width, preset.height) ?? undefined,
+          }
+        : { format, width: size.width, height: size.height, fps: FPS, quality },
       {
         onProgress: (done, total) => setPhase((p) => (p.kind === 'running' ? { ...p, done, total } : p)),
         onWarning: (message) => setWarnings((w) => [...w, message]),
@@ -207,9 +292,38 @@ export function ExportDialog() {
             </label>
             <div className="export-name-row">
               <Input id={nameId} value={name} maxLength={80} onChange={(e) => setName(e.currentTarget.value)} />
-              <span className="t-timecode export-ext">.{format}</span>
+              <span className="t-timecode export-ext">.{outFormat}</span>
             </div>
           </div>
+          <div className="export-name">
+            <span className="field-label">Tujuan</span>
+            <DestinationPicker value={destination} onChange={setDestination} available={presetOk} />
+          </div>
+          {preset ? (
+            <div className="export-preset">
+              <p className="t-tick">
+                MP4 (H.264 + AAC) · {preset.width}×{preset.height} · {FPS} fps · {formatMbps(preset.videoBitrate)} ·{' '}
+                {formatTimecode(duration)}
+              </p>
+              <p className="t-caption">{preset.note}</p>
+              {aspect !== preset.aspect && (
+                <div className="export-notice" role="note">
+                  <p className="t-body">
+                    Proyekmu berasio {aspect}, sedangkan {preset.label} memakai {preset.aspect}. Tanpa diubah, videomu
+                    ditaruh utuh di tengah dengan latar hitam.
+                  </p>
+                  <Button onClick={() => changeAspect(preset.aspect)}>Ubah rasio proyek ke {preset.aspect}</Button>
+                </div>
+              )}
+              {preset.maxSeconds !== undefined && seconds > preset.maxSeconds && (
+                <p className="t-caption">
+                  Durasi {formatTimecode(duration)} lebih dari {preset.maxSeconds} detik. {preset.label} biasanya
+                  dibatasi {preset.maxSeconds} detik per bagian; potong jadi beberapa klip bila perlu.
+                </p>
+              )}
+            </div>
+          ) : (
+          <>
           <Field label="Format">
             {() => (
               <Segmented
@@ -253,6 +367,8 @@ export function ExportDialog() {
             {!current?.resolutions.includes(2160) && <> · 4K tidak didukung browser ini.</>}
             {!support.some((s) => s.format === 'mp4') && <> · MP4 tidak didukung, pakai WebM.</>}
           </p>
+          </>
+          )}
           <div className="export-estimate">
             <p className="t-body">
               Perkiraan ukuran <span className="t-timecode">±{formatSize(estimate)}</span>

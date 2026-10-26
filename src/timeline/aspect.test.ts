@@ -3,14 +3,15 @@ import { outputSize } from '../export/support';
 import { ASPECTS, frameSize, sizeForShortSide } from './model';
 
 describe('rasio bingkai', () => {
-  it('menyediakan 16:9, 4:3, 1:1, 3:4, dan 9:16', () => {
-    expect(ASPECTS).toEqual(['16:9', '4:3', '1:1', '3:4', '9:16']);
+  it('menyediakan 16:9, 4:3, 1:1, 4:5, 3:4, dan 9:16', () => {
+    expect(ASPECTS).toEqual(['16:9', '4:3', '1:1', '4:5', '3:4', '9:16']);
   });
 
   it('bingkai acuan bersisi pendek 1080', () => {
     expect(frameSize('16:9')).toEqual({ width: 1920, height: 1080 });
     expect(frameSize('4:3')).toEqual({ width: 1440, height: 1080 });
     expect(frameSize('1:1')).toEqual({ width: 1080, height: 1080 });
+    expect(frameSize('4:5')).toEqual({ width: 1080, height: 1350 });
     expect(frameSize('3:4')).toEqual({ width: 1080, height: 1440 });
     expect(frameSize('9:16')).toEqual({ width: 1080, height: 1920 });
   });

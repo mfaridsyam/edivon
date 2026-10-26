@@ -15,7 +15,7 @@ import {
   type InputVideoTrack,
   type WrappedCanvas,
 } from 'mediabunny';
-import { drawFrame, layersAt, type Ctx2D, type FrameSource } from '../engine/compositor';
+import { VIDEO_BACKGROUND, drawFrame, layersAt, type Ctx2D, type FrameSource } from '../engine/compositor';
 import { prepareVideoTrack } from '../engine/hevcDecoder';
 import { codecLabel } from '../engine/codecs';
 import { findTrack, hasAudio, isSourceTimed, projectDuration, sourceTimeAt, type VideoClip } from '../timeline/model';
@@ -123,22 +123,34 @@ async function run(msg: StartMessage) {
   // Gambar sumber diperkecil/diperbesar ke ukuran keluaran dengan interpolasi terbaik.
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  // Bitrate eksplisit (bukan bawaan mediabunny yang terlalu rendah untuk rekaman kamera).
+  // Bitrate eksplisit (bukan bawaan mediabunny yang terlalu rendah untuk rekaman kamera); preset media
+  // sosial membawa bitrate-nya sendiri.
   const videoQuality = new Quality({
-    bitrate: videoBitrate(settings.format, settings.width, settings.height, settings.quality, settings.fps),
+    bitrate:
+      settings.videoBitrate ??
+      videoBitrate(settings.format, settings.width, settings.height, settings.quality, settings.fps),
     bitrateMode: 'variable',
   });
-  const audioQuality = new Quality({ bitrate: audioBitrate(settings.format, settings.quality) });
+  const audioQuality = new Quality({ bitrate: settings.audioBitrate ?? audioBitrate(settings.format, settings.quality) });
   const videoSource = new CanvasSource(canvas, { codec: codecs.video, quality: videoQuality, keyFrameInterval: 2 });
   output.addVideoTrack(videoSource, { frameRate: settings.fps });
   const audioSource = audible.length > 0 ? new AudioSampleSource({ codec: codecs.audio, quality: audioQuality }) : null;
   if (audioSource) output.addAudioTrack(audioSource);
   await output.start();
 
+  // Bila rasio proyek berbeda dari rasio keluaran (preset media sosial), komposisi digambar utuh di kanvas
+  // tersendiri lalu ditaruh di tengah bingkai keluaran berlatar hitam.
+  const inner = settings.inner;
+  const comp = inner ? new OffscreenCanvas(inner.width, inner.height) : canvas;
+  const compCtx = inner ? comp.getContext('2d', { alpha: false }) : ctx;
+  if (!compCtx) throw new Error('Kanvas tidak tersedia di worker.');
+  compCtx.imageSmoothingEnabled = true;
+  compCtx.imageSmoothingQuality = 'high';
+
   let scratch: { canvas: OffscreenCanvas; ctx: Ctx2D } | null = null;
   const getScratch = () => {
     if (!scratch) {
-      const c = new OffscreenCanvas(settings.width, settings.height);
+      const c = new OffscreenCanvas(comp.width, comp.height);
       const x = c.getContext('2d');
       if (!x) return null;
       scratch = { canvas: c, ctx: x };
@@ -218,9 +230,9 @@ async function run(msg: StartMessage) {
 
     drawFrame(
       {
-        ctx,
-        width: settings.width,
-        height: settings.height,
+        ctx: compCtx,
+        width: comp.width,
+        height: comp.height,
         textColors: msg.textColors,
         fontFamily: msg.fontFamily,
         scratch: getScratch,
@@ -235,6 +247,11 @@ async function run(msg: StartMessage) {
       project,
       f,
     );
+    if (inner) {
+      ctx.fillStyle = VIDEO_BACKGROUND;
+      ctx.fillRect(0, 0, settings.width, settings.height);
+      ctx.drawImage(comp, inner.x, inner.y);
+    }
     await videoSource.add(f / settings.fps, 1 / settings.fps);
 
     const now = performance.now();

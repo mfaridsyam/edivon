@@ -11,6 +11,12 @@ export interface ExportSettings {
   height: number;
   fps: number;
   quality: ExportQuality;
+  /** Bitrate video (bps) dari preset; bila kosong dihitung dari resolusi dan kualitas. */
+  videoBitrate?: number;
+  /** Bitrate audio (bps) dari preset. */
+  audioBitrate?: number;
+  /** Area komposisi di dalam bingkai keluaran bila rasionya berbeda (sisanya hitam). */
+  inner?: { x: number; y: number; width: number; height: number };
 }
 
 export interface ExportMedia {
